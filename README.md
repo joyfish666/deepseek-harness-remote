@@ -133,7 +133,7 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 | `POST /api/password` | 修改密码：`{oldPassword, newPassword}` → 新令牌（写入 `.env` 并热更新，旧令牌立即失效） |
 | `GET /api/health` | 网关与 dsh 连接状态 |
 | `GET /api/sessions` / `POST /api/sessions` | 会话列表 / 新建（`{workspaceId?, cwd?, agentPreset?}`） |
-| `POST /api/sessions/:id/archive` | 删除会话（归档，从列表消失；数据保留可恢复） |
+| `POST /api/sessions/:id/archive` | 归档会话（从所有列表消失；数据完整保留，但协议无取消归档/真删除，桌面端同理） |
 | `GET /api/search?q=` | 会话内容全文搜索 |
 | `GET /api/sessions/:id/history` | 会话历史 |
 | `POST /api/sessions/:id/prompt` | 发消息 `{text, images?: [{mediaType, data, name}], mode?}`（`/` 开头为命令） |
