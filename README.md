@@ -12,5 +12,5 @@
 ## 当前状态
 
 - [x] 本地项目与远端仓库绑定（本仓库，`deepseek-harness-master` 除外）
-- [ ] 远程控制方案设计（见 `docs/remote-control-plan.md`）
-- [ ] 方案实施
+- [x] 远程控制方案设计（见 `docs/remote-control-plan.md`）
+- [ ] 方案实施（建议从「隧道 + 现有 GUI」开始）
