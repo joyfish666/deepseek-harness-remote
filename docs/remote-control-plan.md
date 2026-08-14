@@ -151,13 +151,17 @@ Phase 3 是 Phase 2 的"能力补强"，两者可并存：网关先走 `/api`，
    - **格式坑**：`!!js` 标签只接受单个 YAML 标量——整个 JS 表达式必须用引号包裹成字符串；带空格的裸流式数组会导致启动解析失败（fail-loud）。
    - 该文件由 dsh 的 `watchUserPatches`（Cordis HMR）热重载，事务性重应用，改完即时生效。
 
-3. **tailscale serve**：`tailscale serve --bg 3080`（把 `https://<tailnet-ip>/` 与 `https://<machine>.<tailnet>.ts.net/` 转发到本机 `127.0.0.1:3080`）。注意：**首次使用需 tailnet 管理员在 `https://login.tailscale.com/f/serve?node=<node>` 启用 Serve 功能**（安全开关，一个页面开关）。
+3. **tailscale serve**：`tailscale serve --bg 3080`（把 `https://<machine>.<tailnet>.ts.net/` 转发到本机 `127.0.0.1:3080`）。注意：**首次使用需 tailnet 管理员在 `https://login.tailscale.com/f/serve?node=<node>` 启用 Serve 功能**（安全开关，一个页面开关）。
+
+### 实测结论（重要）
+
+- **手机/浏览器只能使用 MagicDNS 域名** `https://<machine>.<tailnet>.ts.net/`——本版本 Tailscale Serve 只为域名签发证书（SAN 仅含 DNS 名），且对 `https://<tailnet-ip>/` 的连接直接拒绝（TLS alert internal error，IP 无 SNI 站点）。Windows 的 curl/schannel 对 IP 直连也不支持 SNI，属同一限制。
+- 端到端验证（PC 侧，经 tailnet 域名）：静态页 200 ✅；真实 RPC `POST /api/session.list`（信封 `{"type":"client-request","rpcId":"<id>","method":"session.list","payload":{}}`）返回 200 + 会话数据 ✅；WebSocket `wss://…/api/events.mux`（带 `Origin` 头）握手通过并收到 `session/subscribed` 帧 ✅；未知 Host 仍 403 ✅。
 
 ### 手机端使用
 
-1. 手机浏览器打开 `https://<tailnet-ip>/`（或 MagicDNS 域名）。
-2. 需要 TLS 证书信任（Tailscale 为 tailnet IP / MagicDNS 域名签发证书）。
-3. 之后即可远程建会话、发任务、看状态、处理审批。
+1. 手机浏览器打开 `https://<machine>.<tailnet>.ts.net/`（Tailscale App 需保持连接；MagicDNS 由 App 自动配置）。
+2. 之后即可远程建会话、发任务、看状态、处理审批。
 
 ### 安全边界（重要）
 
