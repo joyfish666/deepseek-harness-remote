@@ -91,13 +91,15 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 
 | 功能 | 说明 |
 |---|---|
-| 新建会话 | 选择工作区/工作目录 |
-| 查看工作区 | 工作区列表 + **文件浏览**（仅限工作区内，越界拒绝） |
+| 新建会话 | 选择工作区/工作目录/**Agent 预设** |
+| 查看工作区 | 工作区列表 + **文件浏览/新建文件夹**（仅限工作区内，越界拒绝）+ 重命名/删除工作区 |
 | 同步会话 | 与电脑端实时同步：同一批会话，双向可见，状态实时刷新 |
+| 搜索会话 | 会话**内容全文搜索**（结果带摘要） |
 | 输入命令 | 消息以 `/` 开头即执行斜杠命令（与电脑端一致） |
-| 模型选择 | 查看模型目录并按会话切换（DeepSeek / 自定义 provider） |
+| 模型选择 | 模型目录 + **推理等级**（如 DeepSeek 思考等级）按会话切换 |
+| 图片消息 | 📎 从手机相册发送图片（需模型支持视觉） |
 | 审批 | 需要审批的操作推送到手机，远程"允许一次 / 拒绝" |
-| 停止运行 | 随时取消正在运行的任务 |
+| 停止/删除/目标 | 停止运行、删除会话（归档）、设置目标 |
 | 多语言 | 中文 / English，默认跟随系统语言，可手动切换 |
 
 ### 使用步骤
@@ -130,14 +132,20 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 | `POST /api/login` | 登录：`{password}` → `{token}`（密码错误 401，限流防爆破） |
 | `POST /api/password` | 修改密码：`{oldPassword, newPassword}` → 新令牌（写入 `.env` 并热更新，旧令牌立即失效） |
 | `GET /api/health` | 网关与 dsh 连接状态 |
-| `GET /api/sessions` / `POST /api/sessions` | 会话列表 / 新建（`{workspaceId?, cwd?}`） |
+| `GET /api/sessions` / `POST /api/sessions` | 会话列表 / 新建（`{workspaceId?, cwd?, agentPreset?}`） |
+| `POST /api/sessions/:id/archive` | 删除会话（归档，从列表消失；数据保留可恢复） |
+| `GET /api/search?q=` | 会话内容全文搜索 |
 | `GET /api/sessions/:id/history` | 会话历史 |
-| `POST /api/sessions/:id/prompt` | 发消息 `{text, mode?: 'queue'\|'steer'}`（`/` 开头为命令） |
+| `POST /api/sessions/:id/prompt` | 发消息 `{text, images?: [{mediaType, data, name}], mode?}`（`/` 开头为命令） |
 | `POST /api/sessions/:id/cancel` | 停止运行 |
-| `POST /api/sessions/:id/selectModel` | 切换模型 `{provider, model, reasoningEffort?}` |
+| `POST /api/sessions/:id/selectModel` | 切换模型 `{provider, model, reasoningEffort?}`（推理等级可选） |
 | `POST /api/sessions/:id/rename` / `fork` | 重命名 / 派生副本 |
+| `POST /api/sessions/:id/goals` | 设置目标 `{objective, maxGoalRounds?}` |
 | `GET /api/workspaces` / `POST /api/workspaces` | 工作区列表 / 添加 |
+| `POST /api/workspaces/:id/rename` / `DELETE /api/workspaces/:id` | 重命名 / 删除工作区 |
 | `GET /api/workspaces/:id/files?path=` | 工作区文件浏览（越界 403） |
+| `POST /api/workspaces/:id/folder` | 工作区内新建文件夹 `{name, path?}` |
+| `GET /api/presets` | Agent 预设列表（新建会话选择） |
 | `GET /api/models` / `GET /api/providers` | 模型目录 / 提供商 |
 | `POST /api/approvals/:rpcId` | 审批应答 `{sessionId, approvalId, outcome}` |
 | `GET /api/stream?token=` | SSE 实时事件流（mux/host 帧） |

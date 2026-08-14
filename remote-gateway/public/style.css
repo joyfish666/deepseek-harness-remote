@@ -49,6 +49,23 @@ textarea { resize: none; }
 /* 未连接横幅 */
 .banner { margin: 0 16px 10px; padding: 10px 14px; border-radius: 12px; background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; font-size: 13px; }
 
+/* 搜索框 */
+.searchbox { margin-bottom: 10px; }
+
+/* 工作区操作 */
+.ws-actions { display: flex; gap: 8px; margin-top: 10px; }
+.chip.danger { color: var(--danger); border-color: #fecaca; background: #fff; }
+
+/* 推理等级 */
+.eff-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0 8px; }
+.eff-chip { background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; font-size: 12px; }
+.eff-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* 附件 */
+.inputbar-left { display: flex; align-items: flex-end; }
+.attachments { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px; }
+.img-chip { background: var(--card2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
+
 /* 设置 */
 .gear { font-weight: 600; }
 .lang-btns { display: flex; gap: 8px; }

@@ -162,6 +162,25 @@ let sessionId = null
   check('重命名会话（写操作）', renamed.status === 200 && renamed.data?.title === '[E2E] 网关验收测试')
 }
 
+// ── 7. 新功能：预设 / 搜索 / 目标 / 归档 ────────────────────────────────
+{
+  const presets = await api('/api/presets')
+  check('预设列表', presets.status === 200 && Array.isArray(presets.data?.items))
+
+  const search = await api('/api/search?q=' + encodeURIComponent('收到'))
+  check('会话内容搜索', search.status === 200 && Array.isArray(search.data?.items),
+    `${search.data?.items?.length} 条结果`)
+
+  const goal = await api(`/api/sessions/${encodeURIComponent(sessionId)}/goals`, {
+    method: 'POST', body: { objective: '[E2E] 验收测试目标' },
+  })
+  check('设置目标', goal.status === 200, goal.data?.error?.message ?? '')
+
+  const arch = await api(`/api/sessions/${encodeURIComponent(sessionId)}/archive`, { method: 'POST' })
+  check('归档会话（删除）', arch.status === 200)
+  console.log('      （测试会话已自动归档，不污染列表）')
+}
+
 // ── 汇总 ────────────────────────────────────────────────────────────────
 const failed = results.filter((r) => !r.pass)
 console.log(`\n===== ${results.length - failed.length}/${results.length} PASS =====`)

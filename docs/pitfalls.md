@@ -61,6 +61,10 @@
 | P25 | `tailscale serve` 首次使用报 "Serve is not enabled on your tailnet" | Tailscale 安全开关，需网页授权一次 | 用终端给的 `https://login.tailscale.com/f/serve?node=…` 链接 Enable |
 | P26 | `https://<tailnet-ip>/` 打不开（TLS alert / schannel 不支持 IP SNI） | 本版 Serve 只为 **MagicDNS 域名**签证书；Windows schannel 对 IP 不发 SNI | 一律用 `https://<机器名>.<tailnet>.ts.net/`；测试用 Node/curl 而非 schannel |
 | P27 | 自启任务必须防双实例 | 登录时用户可能已手动启动 | 自启脚本先查端口占用（`Get-NetTCPConnection -LocalPort`）再启动 |
+| P28 | 手机键盘 Enter 会"发送"，用户期望换行 | 桌面习惯（Enter 发送）与手机输入法冲突 | 移动端 UI 里 Enter 一律换行，发送只走按钮（设计决策，非 bug） |
+| P29 | remote 方法（goals 等）报 "must contain exactly one plain-object args field" / "missing agentId" | Typert wire 载荷固定为 `{args:{...}}` 单键对象；agent 查找身份字段名固定为 **`agentId`**（值=会话 id），业务参数平铺在 args 内 | `dsh.rpc('goals/create', { args: { agentId: sessionId, request: { objective } } })` |
+| P30 | `session.search` 报 "search is disabled: openAt never" | web-app bundle 默认 `session-query-sqlite.openAt: never`（全文搜索为 opt-in） | profile 补丁重述整行：`{path: ':memory:', openAt: first-search}`（首次搜索时懒建索引，热重载生效） |
+| P31 | `agentPreset.list` 返回结构是 `{presets:[...]}` 而非 `{items}` | 各域 wire 返回结构不同 | 网关层归一化对外契约（`{items}`），UI 不感知差异 |
 
 ## 七、方法原则（来自教训）
 

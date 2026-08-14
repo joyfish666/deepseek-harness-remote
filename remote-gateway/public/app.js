@@ -21,6 +21,13 @@ const I18N = {
     connected: '已连接', disconnected: '未连接', sent: '已发送', cancelled: '已停止',
     modelChanged: '模型已切换', renamed: '已重命名', forked: '已创建副本', created: '会话已创建',
     error: '出错了', tools: '工具', emptyMsg: '还没有消息', thinking: '💭 思考（点击展开）',
+    searchPlaceholder: '搜索会话内容…', preset: 'Agent 预设（可选）', setGoal: '设置目标',
+    goalCreated: '目标已设置', goalPrompt: '目标描述', deleteSession: '删除会话',
+    confirmDelete: '删除后会话将从列表消失（数据归档保留，可在电脑端恢复）。确定删除？',
+    deleted: '已删除', renameWs: '重命名工作区', deleteWs: '删除工作区',
+    confirmDeleteWs: '确定删除该工作区？（目录与会话不受影响）', newFolder: '新建文件夹',
+    folderName: '文件夹名称', folderCreated: '已创建', attachImage: '添加图片',
+    imgTooLarge: '图片超过 5MB 限制', noSearch: '没有匹配的会话',
   },
   en: {
     appName: 'DSH Remote', settings: 'Settings', language: 'Language',
@@ -40,6 +47,13 @@ const I18N = {
     connected: 'Connected', disconnected: 'Disconnected', sent: 'Sent', cancelled: 'Stopped',
     modelChanged: 'Model changed', renamed: 'Renamed', forked: 'Forked', created: 'Session created',
     error: 'Error', tools: 'tools', emptyMsg: 'No messages yet', thinking: '💭 Thinking (tap to expand)',
+    searchPlaceholder: 'Search session content…', preset: 'Agent preset (optional)', setGoal: 'Set goal',
+    goalCreated: 'Goal set', goalPrompt: 'Goal description', deleteSession: 'Delete session',
+    confirmDelete: 'The session will disappear from the list (data is archived and recoverable on the PC). Delete?',
+    deleted: 'Deleted', renameWs: 'Rename workspace', deleteWs: 'Delete workspace',
+    confirmDeleteWs: 'Delete this workspace? (files and sessions are unaffected)', newFolder: 'New folder',
+    folderName: 'Folder name', folderCreated: 'Created', attachImage: 'Add image',
+    imgTooLarge: 'Image exceeds the 5MB limit', noSearch: 'No matching sessions',
   },
 }
 let lang = localStorage.getItem('gw-lang') || (navigator.language || '').startsWith('zh') ? 'zh' : 'en'
@@ -57,7 +71,11 @@ const state = {
   models: null,           // llm.models
   sessionModels: null,    // session.models for active session
   files: null,            // { wsId, path, listing }
+  presets: [],            // agentPreset.list
+  attachments: [],        // [{ mediaType, data, name }]
   es: null,
+  searchTimer: null,
+  searchResults: null,    // [{sessionId, snippet}]；null = 未在搜索
 }
 
 // ── DOM 助手 ────────────────────────────────────────────────────────────
@@ -212,11 +230,15 @@ function renderWorkspaceChips() {
 function renderSessions() {
   const list = $('#session-list')
   list.innerHTML = ''
-  const items = state.activeWs
+  let items = state.activeWs
     ? state.sessions.filter((s) => state.workspaces.find((w) => w.workspaceId === state.activeWs)?.sessionIds.includes(s.sessionId))
     : state.sessions
+  const searching = state.searchResults !== null
+  if (searching) {
+    items = items.filter((s) => state.searchResults.includes(s.sessionId))
+  }
   if (!items.length) {
-    list.appendChild(el('div', 'empty', t('noSessions')))
+    list.appendChild(el('div', 'empty', searching ? t('noSearch') : t('noSessions')))
     return
   }
   for (const s of items) {
@@ -229,10 +251,31 @@ function renderSessions() {
     title.appendChild(badge)
     const sub = el('div', 'card-sub')
     sub.textContent = `${s.cwd || ''} · ${fmtTime(s.updatedAt)}`
+    if (searching) {
+      const hit = state.searchResults.find((r) => r.sessionId === s.sessionId)
+      if (hit?.snippet) sub.textContent = hit.snippet
+    }
     card.append(title, sub)
     card.onclick = () => openDetail(s)
     list.appendChild(card)
   }
+}
+
+// ── 搜索（内容全文搜索，防抖 300ms）────────────────────────────────────
+function onSearchInput() {
+  clearTimeout(state.searchTimer)
+  const q = $('#search').value.trim()
+  state.searchTimer = setTimeout(async () => {
+    if (!state.connected) return
+    if (!q) { state.searchResults = null; renderSessions(); return }
+    try {
+      const data = await api(`api/search?q=${encodeURIComponent(q)}`)
+      state.searchResults = (data.items || []).map((it) => ({ sessionId: it.sessionId, snippet: it.snippet }))
+      renderSessions()
+    } catch (err) {
+      if (state.connected) toast(`${t('error')}: ${err.message}`)
+    }
+  }, 300)
 }
 
 // ── 渲染：工作区 ────────────────────────────────────────────────────────
@@ -250,11 +293,41 @@ function renderWorkspaces() {
     const badge = el('span', 'badge', `${ws.sessionIds.length}`)
     title.appendChild(badge)
     const sub = el('div', 'card-sub', ws.path)
+    const actions = el('div', 'ws-actions')
     const browse = el('button', 'chip', t('browsing'))
     browse.onclick = (e) => { e.stopPropagation(); openFileBrowser(ws) }
-    card.append(title, sub, browse)
+    const rename = el('button', 'chip', t('rename'))
+    rename.onclick = (e) => {
+      e.stopPropagation()
+      const title2 = prompt(t('renameWs'), ws.title)
+      if (title2 && title2.trim()) renameWorkspace(ws, title2.trim())
+    }
+    const del = el('button', 'chip danger', t('deleteWs'))
+    del.onclick = (e) => {
+      e.stopPropagation()
+      if (!confirm(t('confirmDeleteWs'))) return
+      deleteWorkspace(ws)
+    }
+    actions.append(browse, rename, del)
+    card.append(title, sub, actions)
     list.appendChild(card)
   }
+}
+
+async function renameWorkspace(ws, title) {
+  try {
+    await api(`api/workspaces/${encodeURIComponent(ws.workspaceId)}/rename`, { method: 'POST', body: { title } })
+    toast(t('renamed'))
+    refreshWorkspaces()
+  } catch (err) { toast(`${t('error')}: ${err.message}`) }
+}
+
+async function deleteWorkspace(ws) {
+  try {
+    await api(`api/workspaces/${encodeURIComponent(ws.workspaceId)}`, { method: 'DELETE' })
+    toast(t('deleted'))
+    refreshWorkspaces()
+  } catch (err) { toast(`${t('error')}: ${err.message}`) }
 }
 
 // ── 渲染：会话详情 ──────────────────────────────────────────────────────
@@ -535,7 +608,7 @@ async function loadFiles() {
   } catch (err) { toast(`${t('error')}: ${err.message}`) }
 }
 
-// ── 模型选择 ────────────────────────────────────────────────────────────
+// ── 模型选择（含推理等级）──────────────────────────────────────────────
 async function openModelPicker() {
   const d = state.detail
   if (!d) return
@@ -546,21 +619,35 @@ async function openModelPicker() {
     const current = state.sessionModels.selection || {}
     const list = $('#mp-list')
     list.innerHTML = ''
+    const select = async (provider, model, effort) => {
+      try {
+        await api(`/api/sessions/${encodeURIComponent(d.sessionId)}/selectModel`, {
+          method: 'POST', body: { provider, model, ...(effort ? { reasoningEffort: effort } : {}) },
+        })
+        $('#model-picker').classList.add('hidden')
+        toast(t('modelChanged'))
+      } catch (err) { toast(`${t('error')}: ${err.message}`) }
+    }
     for (const g of groups) {
       const group = el('div', 'mp-group')
       group.appendChild(el('div', 'mp-provider', g.name))
       for (const m of g.models || []) {
-        const btn = el('button', 'mp-model' + (current.provider === g.id && current.model === m.id ? ' active' : ''), m.name || m.id)
-        btn.onclick = async () => {
-          try {
-            await api(`/api/sessions/${encodeURIComponent(d.sessionId)}/selectModel`, {
-              method: 'POST', body: { provider: g.id, model: m.id, reasoningEffort: m.reasoning?.defaultEffort },
-            })
-            $('#model-picker').classList.add('hidden')
-            toast(t('modelChanged'))
-          } catch (err) { toast(`${t('error')}: ${err.message}`) }
+        const active = current.provider === g.id && current.model === m.id
+        const btn = el('button', 'mp-model' + (active ? ' active' : ''), m.name || m.id)
+        const efforts = m.reasoning?.efforts || []
+        const effRow = el('div', 'eff-row hidden')
+        for (const ef of efforts) {
+          const activeEff = active && current.reasoningEffort === ef.id
+          const chip = el('button', 'eff-chip' + (activeEff ? ' active' : ''), ef.name)
+          chip.onclick = () => select(g.id, m.id, ef.id)
+          effRow.appendChild(chip)
         }
-        group.appendChild(btn)
+        btn.onclick = () => {
+          // 有推理等级可选 → 点击展开等级行；无 → 直接选择
+          if (efforts.length) effRow.classList.toggle('hidden')
+          else select(g.id, m.id, undefined)
+        }
+        group.append(btn, effRow)
       }
       list.appendChild(group)
     }
@@ -568,16 +655,43 @@ async function openModelPicker() {
   } catch (err) { toast(`${t('error')}: ${err.message}`) }
 }
 
+// ── 图片附件 ────────────────────────────────────────────────────────────
+function renderAttachments() {
+  const box = $('#attachments')
+  box.innerHTML = ''
+  box.classList.toggle('hidden', state.attachments.length === 0)
+  state.attachments.forEach((a, i) => {
+    const chip = el('span', 'img-chip', `🖼 ${a.name || a.mediaType.split('/')[1]}`)
+    chip.onclick = () => { state.attachments.splice(i, 1); renderAttachments() }
+    box.appendChild(chip)
+  })
+}
+
+function addAttachment(file) {
+  if (file.size > 5 * 1024 * 1024) { toast(t('imgTooLarge')); return }
+  const reader = new FileReader()
+  reader.onload = () => {
+    state.attachments.push({ mediaType: file.type || 'image/png', data: String(reader.result).split(',')[1], name: file.name })
+    renderAttachments()
+  }
+  reader.readAsDataURL(file)
+}
+
 // ── 动作 ────────────────────────────────────────────────────────────────
 async function sendMessage() {
   const d = state.detail
   const input = $('#input')
   const text = input.value.trim()
-  if (!d || !text) return
+  const images = state.attachments
+  if (!d || (!text && images.length === 0)) return
   input.value = ''
   input.style.height = 'auto'
+  state.attachments = []
+  renderAttachments()
   try {
-    await api(`/api/sessions/${encodeURIComponent(d.sessionId)}/prompt`, { method: 'POST', body: { text, mode: 'queue' } })
+    await api(`/api/sessions/${encodeURIComponent(d.sessionId)}/prompt`, {
+      method: 'POST', body: { text, images, mode: 'queue' },
+    })
     toast(t('sent'))
     scheduleScroll()
   } catch (err) { toast(`${t('error')}: ${err.message}`) }
@@ -610,24 +724,85 @@ async function renameSession() {
 async function forkSession() {
   const d = state.detail
   try {
-    const data = await api(`/api/sessions/${encodeURIComponent(d.sessionId)}/fork`, { method: 'POST', body: {} })
+    await api(`/api/sessions/${encodeURIComponent(d.sessionId)}/fork`, { method: 'POST', body: {} })
     $('#session-menu').classList.add('hidden')
     toast(t('forked'))
     refreshSessions()
   } catch (err) { toast(`${t('error')}: ${err.message}`) }
 }
 
+/** 删除会话 = 归档（从列表消失；数据保留，可在电脑端恢复）。 */
+async function archiveSession() {
+  const d = state.detail
+  if (!d) return
+  if (!confirm(t('confirmDelete'))) return
+  try {
+    await api(`/api/sessions/${encodeURIComponent(d.sessionId)}/archive`, { method: 'POST' })
+    $('#session-menu').classList.add('hidden')
+    $('#detail').classList.add('hidden')
+    $('#view-sessions').classList.remove('hidden')
+    state.detail = null
+    toast(t('deleted'))
+    refreshSessions()
+  } catch (err) { toast(`${t('error')}: ${err.message}`) }
+}
+
+/** 设置目标（与桌面端 goal 面板一致）。 */
+async function setGoal() {
+  const d = state.detail
+  if (!d) return
+  const objective = prompt(t('goalPrompt'))
+  if (!objective || !objective.trim()) return
+  try {
+    await api(`/api/sessions/${encodeURIComponent(d.sessionId)}/goals`, {
+      method: 'POST', body: { objective: objective.trim() },
+    })
+    $('#session-menu').classList.add('hidden')
+    toast(t('goalCreated'))
+  } catch (err) { toast(`${t('error')}: ${err.message}`) }
+}
+
 async function createSession() {
   const wsId = $('#ns-workspace').value || undefined
   const cwd = $('#ns-cwd').value.trim() || undefined
+  const agentPreset = $('#ns-preset').value || undefined
   try {
-    const data = await api('/api/sessions', { method: 'POST', body: { workspaceId: wsId, cwd } })
+    const data = await api('/api/sessions', { method: 'POST', body: { workspaceId: wsId, cwd, agentPreset } })
     $('#new-session-modal').classList.add('hidden')
     toast(t('created'))
     refreshSessions()
     const s = state.sessions.find((x) => x.sessionId === data.sessionId)
     if (s) openDetail(s)
   } catch (err) { toast(`${t('error')}: ${err.message}`) }
+}
+
+/** 打开新建会话弹窗：填充工作区与预设下拉。 */
+async function openNewSessionModal() {
+  const sel = $('#ns-workspace')
+  sel.innerHTML = ''
+  const none = el('option', '', lang === 'zh' ? '（不指定）' : '(none)')
+  none.value = ''
+  sel.appendChild(none)
+  for (const ws of state.workspaces) {
+    const opt = el('option', '', `${ws.title} — ${ws.path}`)
+    opt.value = ws.workspaceId
+    sel.appendChild(opt)
+  }
+  const presetSel = $('#ns-preset')
+  presetSel.innerHTML = ''
+  const pnone = el('option', '', lang === 'zh' ? '（默认）' : '(default)')
+  pnone.value = ''
+  presetSel.appendChild(pnone)
+  if (!state.presets.length) {
+    try { state.presets = (await api('/api/presets')).items || [] } catch { /* 预设不可用时忽略 */ }
+  }
+  for (const p of state.presets) {
+    if (p.broken) continue
+    const opt = el('option', '', p.name || p.id)
+    opt.value = p.id
+    presetSel.appendChild(opt)
+  }
+  $('#new-session-modal').classList.remove('hidden')
 }
 
 async function addWorkspace() {
@@ -637,6 +812,21 @@ async function addWorkspace() {
     await api('/api/workspaces', { method: 'POST', body: { path } })
     toast(t('created'))
     refreshWorkspaces()
+  } catch (err) { toast(`${t('error')}: ${err.message}`) }
+}
+
+/** 文件浏览器：新建文件夹。 */
+async function newFolder() {
+  const f = state.files
+  if (!f) return
+  const name = prompt(t('folderName'))
+  if (!name || !name.trim()) return
+  try {
+    await api(`api/workspaces/${encodeURIComponent(f.wsId)}/folder`, {
+      method: 'POST', body: { name: name.trim(), path: f.path },
+    })
+    toast(t('folderCreated'))
+    loadFiles()
   } catch (err) { toast(`${t('error')}: ${err.message}`) }
 }
 
@@ -759,19 +949,7 @@ $('#tab-workspaces').onclick = () => {
   $('#tab-workspaces').classList.add('active'); $('#tab-sessions').classList.remove('active')
   $('#view-workspaces').classList.remove('hidden'); $('#view-sessions').classList.add('hidden')
 }
-$('#new-session-btn').onclick = () => {
-  const sel = $('#ns-workspace')
-  sel.innerHTML = ''
-  const none = el('option', '', lang === 'zh' ? '（不指定）' : '(none)')
-  none.value = ''
-  sel.appendChild(none)
-  for (const ws of state.workspaces) {
-    const opt = el('option', '', `${ws.title} — ${ws.path}`)
-    opt.value = ws.workspaceId
-    sel.appendChild(opt)
-  }
-  $('#new-session-modal').classList.remove('hidden')
-}
+$('#new-session-btn').onclick = openNewSessionModal
 $('#ns-close').onclick = () => $('#new-session-modal').classList.add('hidden')
 $('#ns-create').onclick = createSession
 $('#add-workspace-btn').onclick = addWorkspace
@@ -786,17 +964,26 @@ $('#sm-close').onclick = () => $('#session-menu').classList.add('hidden')
 $('#sm-rename').onclick = renameSession
 $('#sm-fork').onclick = forkSession
 $('#sm-model').onclick = () => { $('#session-menu').classList.add('hidden'); openModelPicker() }
+$('#sm-goal').onclick = setGoal
 $('#sm-cancel').onclick = cancelSession
+$('#sm-delete').onclick = archiveSession
 $('#mp-close').onclick = () => $('#model-picker').classList.add('hidden')
 $('#fb-back').onclick = () => $('#file-browser').classList.add('hidden')
+$('#fb-new-folder').onclick = newFolder
 $('#send-btn').onclick = sendMessage
-$('#input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
-})
+// 键盘 Enter = 换行（不发送）；发送请点按钮
 $('#input').addEventListener('input', (e) => {
   e.target.style.height = 'auto'
   e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
 })
+// 图片附件
+$('#attach-btn').onclick = () => $('#attach-input').click()
+$('#attach-input').addEventListener('change', (e) => {
+  for (const file of e.target.files || []) addAttachment(file)
+  e.target.value = ''
+})
+// 会话搜索（内容全文搜索）
+$('#search').addEventListener('input', onSearchInput)
 
 // ── 启动 ────────────────────────────────────────────────────────────────
 boot()

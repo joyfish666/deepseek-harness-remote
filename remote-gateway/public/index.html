@@ -37,6 +37,7 @@
 
     <!-- 会话列表 -->
     <main id="view-sessions" class="view">
+      <input id="search" class="searchbox" type="search" placeholder="搜索会话内容…">
       <div id="workspace-chips" class="chips"></div>
       <div id="session-list" class="list"></div>
       <button id="new-session-btn" class="fab" title="新建会话">＋</button>
@@ -61,6 +62,11 @@
       <div id="approval-area" class="approval-area"></div>
       <div id="messages" class="messages"></div>
       <div class="inputbar">
+        <div class="inputbar-left">
+          <button id="attach-btn" class="chip" title="图片">📎</button>
+          <input id="attach-input" type="file" accept="image/*" class="hidden">
+        </div>
+        <div id="attachments" class="attachments hidden"></div>
         <textarea id="input" rows="1" placeholder="消息（/ 开头为命令）"></textarea>
         <button id="send-btn" class="btn primary send" data-i18n="send">发送</button>
       </div>
@@ -72,6 +78,7 @@
         <header class="modal-head">
           <button id="fb-back" class="chip">←</button>
           <div id="fb-path" class="fb-path"></div>
+          <button id="fb-new-folder" class="chip">＋ 文件夹</button>
         </header>
         <div id="fb-list" class="list"></div>
       </div>
@@ -100,6 +107,8 @@
           <select id="ns-workspace"></select>
           <label data-i18n="cwd">工作目录（留空用工作区路径）</label>
           <input id="ns-cwd" type="text">
+          <label data-i18n="preset">Agent 预设（可选）</label>
+          <select id="ns-preset"></select>
           <button id="ns-create" class="btn primary" data-i18n="create">创建</button>
         </div>
       </div>
@@ -116,7 +125,9 @@
           <button id="sm-rename" class="menu-item" data-i18n="rename">重命名</button>
           <button id="sm-fork" class="menu-item" data-i18n="fork">派生副本</button>
           <button id="sm-model" class="menu-item" data-i18n="selectModel">选择模型</button>
-          <button id="sm-cancel" class="menu-item danger" data-i18n="cancelRun">停止运行</button>
+          <button id="sm-goal" class="menu-item" data-i18n="setGoal">设置目标</button>
+          <button id="sm-cancel" class="menu-item" data-i18n="cancelRun">停止运行</button>
+          <button id="sm-delete" class="menu-item danger" data-i18n="deleteSession">删除会话</button>
         </div>
       </div>
     </section>

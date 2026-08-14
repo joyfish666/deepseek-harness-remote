@@ -132,6 +132,13 @@ const routes = {
     if (typeof body.path !== 'string' || !body.path) return sendError(res, 400, 'invalid-path', 'path 必填')
     return dsh.rpc('workspace.create', { path: body.path })
   },
+  async 'POST /api/workspaces/:id/rename'(req, res, body, params) {
+    if (typeof body.title !== 'string' || !body.title.trim()) return sendError(res, 400, 'invalid-title', 'title 必填')
+    return dsh.rpc('workspace.rename', { workspaceId: params.id, title: body.title.trim() })
+  },
+  async 'DELETE /api/workspaces/:id'(req, res, body, params) {
+    return dsh.rpc('workspace.delete', { workspaceId: params.id })
+  },
   async 'GET /api/workspaces/:id/files'(req, res, body, params, url) {
     const { items } = await dsh.rpc('workspace.list', {})
     const ws = items.find((w) => w.workspaceId === params.id)
@@ -140,6 +147,26 @@ const routes = {
     if (!target) return sendError(res, 403, 'outside-workspace', '只能浏览工作区内的文件')
     return dsh.rpc('host.listDirectory', { path: target })
   },
+  async 'POST /api/workspaces/:id/folder'(req, res, body, params) {
+    if (typeof body.name !== 'string' || !body.name.trim()) return sendError(res, 400, 'invalid-name', 'name 必填')
+    const { items } = await dsh.rpc('workspace.list', {})
+    const ws = items.find((w) => w.workspaceId === params.id)
+    if (!ws) return sendError(res, 404, 'workspace-not-found', '工作区不存在')
+    const base = constrainPath(ws.path, body.path ?? undefined)
+    if (!base) return sendError(res, 403, 'outside-workspace', '只能在工作区内创建')
+    return dsh.rpc('host.createDirectory', { path: base, name: body.name.trim() })
+  },
+  // 搜索会话（内容全文搜索）
+  async 'GET /api/search'(req, res, body, params, url) {
+    const q = (url.searchParams.get('q') ?? '').trim()
+    if (!q) return sendError(res, 400, 'empty-query', 'q 必填')
+    return dsh.rpc('session.search', { query: q })
+  },
+  // 预设列表（新建会话时选择 agent preset；wire 返回 {presets}，归一化为 {items}）
+  async 'GET /api/presets'() {
+    const v = await dsh.rpc('agentPreset.list', {})
+    return { items: v.presets ?? [] }
+  },
   // 会话
   async 'GET /api/sessions'() { return dsh.rpc('session.list', {}) },
   async 'POST /api/sessions'(req, res, body) {
@@ -147,6 +174,24 @@ const routes = {
       workspaceId: body.workspaceId,
       cwd: body.cwd,
       agentPreset: body.agentPreset,
+    })
+  },
+  async 'POST /api/sessions/:id/archive'(req, res, body, params) {
+    return dsh.rpc('workspace.archiveSession', { sessionId: params.id })
+  },
+  // 目标（与桌面端 goal 面板一致；wire: POST /api/goals/create，载荷 {args:{agentId, request}}）
+  async 'POST /api/sessions/:id/goals'(req, res, body, params) {
+    if (typeof body.objective !== 'string' || !body.objective.trim()) {
+      return sendError(res, 400, 'invalid-objective', 'objective 必填')
+    }
+    return dsh.rpc('goals/create', {
+      args: {
+        agentId: params.id, // agent 查找的 wire 身份 = 会话 id（字段名固定为 agentId）
+        request: {
+          objective: body.objective.trim(),
+          ...(body.maxGoalRounds ? { maxGoalRounds: body.maxGoalRounds } : {}),
+        },
+      },
     })
   },
   async 'GET /api/sessions/:id/history'(req, res, body, params, url) {
@@ -161,11 +206,20 @@ const routes = {
   },
   async 'POST /api/sessions/:id/prompt'(req, res, body) {
     const text = typeof body.text === 'string' ? body.text.trim() : ''
-    if (!text) return sendError(res, 400, 'empty-prompt', '消息不能为空')
+    const images = Array.isArray(body.images) ? body.images : []
+    if (!text && images.length === 0) return sendError(res, 400, 'empty-prompt', '消息不能为空')
+    const content = []
+    if (text) content.push({ type: 'text', text })
+    for (const img of images) {
+      if (typeof img.mediaType !== 'string' || typeof img.data !== 'string' || !img.data) {
+        return sendError(res, 400, 'invalid-image', '图片缺少 mediaType/data')
+      }
+      content.push({ type: 'image', mediaType: img.mediaType, data: img.data, ...(img.name ? { name: img.name } : {}) })
+    }
     return dsh.rpc('session.prompt', {
       sessionId: paramsOf(req).id,
       mode: body.mode === 'steer' ? 'steer' : 'queue',
-      content: [{ type: 'text', text }],
+      content,
       clientTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     }, { timeoutMs: 30000 })
   },
