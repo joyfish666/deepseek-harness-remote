@@ -2,6 +2,7 @@
 // 用法：node tests/e2e.mjs
 // 覆盖：认证（密码登录）、健康、SSE 流、建会话、发消息（实时事件）、取消、历史、工作区文件浏览。
 import { join, dirname } from 'node:path'
+import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { loadEnv } from '../lib/auth.js'
 
@@ -100,7 +101,8 @@ let wsId = null
 let sessionId = null
 {
   const sse = await openSSE()
-  const created = await api('/api/sessions', { method: 'POST', body: { cwd: join(ROOT, '..', '..') } })
+  // 工作目录用系统临时目录：测试会话的 agent 若写文件（如计数任务），产物不污染仓库
+  const created = await api('/api/sessions', { method: 'POST', body: { cwd: join(tmpdir(), 'dsh-e2e') } })
   check('新建会话', created.status === 200 && !!created.data?.sessionId, created.data?.sessionId)
   sessionId = created.data?.sessionId
 
