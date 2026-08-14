@@ -13,6 +13,7 @@ const I18N = {
     send: '发送', inputPlaceholder: '消息（/ 开头为命令）', selectModel: '选择模型',
     sessionActions: '会话操作', rename: '重命名', fork: '派生副本', cancelRun: '停止运行',
     noSessions: '暂无会话，点击右下角 ＋ 新建', noWorkspaces: '暂无工作区，点击 ＋ 添加',
+    loading: '加载中…（大会话可能需要几秒）',
     addWorkspace: '添加工作区', workspacePath: '工作区目录路径', browsing: '文件浏览', up: '上级',
     running: '运行中', idle: '空闲', blank: '空白', archived: '已归档',
     approvalTitle: '需要审批', allowOnce: '允许一次', reject: '拒绝',
@@ -31,6 +32,7 @@ const I18N = {
     send: 'Send', inputPlaceholder: 'Message (starts with / for commands)', selectModel: 'Select model',
     sessionActions: 'Session actions', rename: 'Rename', fork: 'Fork copy', cancelRun: 'Stop',
     noSessions: 'No sessions. Tap + to create one', noWorkspaces: 'No workspaces. Tap + to add one',
+    loading: 'Loading… (large sessions may take a few seconds)',
     addWorkspace: 'Add workspace', workspacePath: 'Workspace directory path', browsing: 'Files', up: 'Up',
     running: 'running', idle: 'idle', blank: 'blank', archived: 'archived',
     approvalTitle: 'Approval required', allowOnce: 'Allow once', reject: 'Reject',
@@ -120,7 +122,10 @@ function handleMux(env) {
   const p = env.payload || {}
   switch (env.method) {
     case 'session/event':
-      if (state.detail && p.sessionId === state.detail.sessionId) appendLiveEvent(p.event)
+      if (state.detail && p.sessionId === state.detail.sessionId) {
+        appendLiveEvent(p.event)
+        scheduleScroll()
+      }
       break
     case 'session/projection':
       if (state.detail && p.sessionId === state.detail.sessionId) applyProjection(p)
@@ -281,17 +286,66 @@ function applyProjection(p) {
   }
 }
 
+// ── 会话详情渲染（性能：大历史可达十余万事件，见 docs/pitfalls.md P18-P21）─────────
+let scrollPending = false
+function scheduleScroll() {
+  if (scrollPending) return
+  scrollPending = true
+  requestAnimationFrame(() => {
+    scrollPending = false
+    const box = $('#messages')
+    box.scrollTop = box.scrollHeight
+  })
+}
+
+/** 限频刷写分块文本（80ms 合并一次 DOM 写入，避免 textContent += O(n²)）。 */
+function flushNode(node) {
+  if (node._flushTimer) return
+  node._flushTimer = setTimeout(() => {
+    node._flushTimer = null
+    if (node._parts && node._parts.length) {
+      node.textContent = node._parts.join('')
+      node._parts.length = 0
+    }
+  }, 80)
+}
+
+/** 立即刷写（消息完成时调用），并清除挂起定时器。 */
+function flushNodeNow(node) {
+  if (node._flushTimer) { clearTimeout(node._flushTimer); node._flushTimer = null }
+  if (node._parts && node._parts.length) {
+    node.textContent = node._parts.join('')
+    node._parts.length = 0
+  }
+}
+
 async function loadHistory(sessionId) {
+  const gen = (state.historyGen = (state.historyGen || 0) + 1) // 代际保护：切换会话后旧批次停止
+  const box = $('#messages')
+  box.innerHTML = ''
+  const loading = el('div', 'empty', t('loading'))
+  box.appendChild(loading)
   try {
     const data = await api(`/api/sessions/${encodeURIComponent(sessionId)}/history?maxMessages=200`)
     const entries = data.events || []
     state.history.set(sessionId, entries)
-    const box = $('#messages')
-    box.innerHTML = ''
-    for (const entry of entries) appendLiveEvent(entry.event || entry)
-    box.scrollTop = box.scrollHeight
+    // 分批渲染：每批 60 条让出主线程，避免十余万事件同步渲染导致页面无响应
+    const queue = entries.slice()
+    await new Promise((resolve) => {
+      const timer = setInterval(() => {
+        if (gen !== state.historyGen) { clearInterval(timer); resolve(); return } // 会话已切换
+        const batch = queue.splice(0, 60)
+        for (const entry of batch) appendLiveEvent(entry.event || entry)
+        if (!queue.length) { clearInterval(timer); resolve() }
+      }, 0)
+    })
+    if (gen !== state.historyGen) return
+    loading.remove()
+    scheduleScroll()
   } catch (err) {
-    toast(`${t('error')}: ${err.message}`)
+    if (gen !== state.historyGen) return
+    loading.remove()
+    if (state.connected) toast(`${t('error')}: ${err.message}`)
   }
 }
 
@@ -305,7 +359,6 @@ function appendLiveEvent(ev) {
   switch (ev.type) {
     case 'user/message':
       box.appendChild(el('div', 'msg user', contentText(data.content)))
-      box.scrollTop = box.scrollHeight
       break
     case 'assistant/chunk': {
       const text = typeof data.chunk?.text === 'string' ? data.chunk.text : ''
@@ -313,40 +366,38 @@ function appendLiveEvent(ev) {
       let node = pending ? pending.el : null
       if (!node) {
         node = el('div', 'msg assistant cursor')
+        node._parts = [] // 分块累积，限频刷写（见 flushNode）
         box.appendChild(node)
         state.pendingAssistant.set(d.sessionId, { el: node })
       }
-      node.textContent += text
-      box.scrollTop = box.scrollHeight
+      node._parts.push(text)
+      flushNode(node)
       break
     }
     case 'assistant/message': {
       const text = contentText(data.message?.content)
       const node = pending ? pending.el : null
       if (node) {
+        flushNodeNow(node)
         if (text) node.textContent = text
         node.classList.remove('cursor')
       } else if (text) {
         box.appendChild(el('div', 'msg assistant', text))
       }
       state.pendingAssistant.set(d.sessionId, null)
-      box.scrollTop = box.scrollHeight
       break
     }
     case 'tool/call': {
       let args = ''
       try { args = String(data.arguments ?? '').slice(0, 160) } catch { /* ignore */ }
       box.appendChild(el('div', 'msg tool', `🔧 ${data.name || 'tool'}${args ? `  ${args}` : ''}`))
-      box.scrollTop = box.scrollHeight
       break
     }
     case 'tool/result':
       box.appendChild(el('div', 'msg tool', data.error ? `✖ ${data.error.name ?? 'error'}` : '✔ ok'))
-      box.scrollTop = box.scrollHeight
       break
     case 'stream/error':
       box.appendChild(el('div', 'msg error', `${t('error')}: ${data.message || ''}`))
-      box.scrollTop = box.scrollHeight
       break
   }
 }
@@ -457,6 +508,7 @@ async function sendMessage() {
   try {
     await api(`/api/sessions/${encodeURIComponent(d.sessionId)}/prompt`, { method: 'POST', body: { text, mode: 'queue' } })
     toast(t('sent'))
+    scheduleScroll()
   } catch (err) { toast(`${t('error')}: ${err.message}`) }
 }
 

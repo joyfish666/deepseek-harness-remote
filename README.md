@@ -258,6 +258,7 @@ tailscale serve --https=443 off    # 关闭转发，手机立即无法访问
 | `remote-gateway/` | **M2 网关**：零依赖 Node 服务（REST + SSE）+ 移动端 PWA（`public/`）+ 端到端验收脚本（`tests/e2e.mjs`） |
 | `scripts/` | 开机自启脚本：`start-dsh.ps1`（dsh）、`start-gateway.ps1`（网关） |
 | `docs/remote-control-plan.md` | 远程控制整体方案：架构调研、方案对比、路线图与 M1/M2 实施记录 |
+| `docs/pitfalls.md` | **踩坑记录**：所有已知坑的根源与对策（改相关代码前必读） |
 | `deepseek-harness-master/` | 官方上游代码（**仅本地参考，不推送 GitHub**，已加入 `.gitignore`） |
 
 ## 路线图
