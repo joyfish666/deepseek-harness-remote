@@ -119,7 +119,7 @@ https://<你的机器名>.<你的tailnet>.ts.net/
    https://<你的机器名>.<你的tailnet>.ts.net/m/
    ```
 
-   输入你设置的密码即可登录。Chrome 菜单 → **添加到主屏幕** 后即可像 App 一样全屏使用。
+   点右上角 **⚙ 设置** → 输入密码 → **保存并登录**。语言切换（中文/English，默认跟随系统）也在设置里。Chrome 菜单 → **添加到主屏幕** 后即可像 App 一样全屏使用。
 
 4. **验证**：手机上能看到与电脑端相同的会话列表；新建会话 → 发一条消息 → 实时看到流式回复。
 
@@ -128,6 +128,7 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 | 端点 | 说明 |
 |---|---|
 | `POST /api/login` | 登录：`{password}` → `{token}`（密码错误 401，限流防爆破） |
+| `POST /api/password` | 修改密码：`{oldPassword, newPassword}` → 新令牌（写入 `.env` 并热更新，旧令牌立即失效） |
 | `GET /api/health` | 网关与 dsh 连接状态 |
 | `GET /api/sessions` / `POST /api/sessions` | 会话列表 / 新建（`{workspaceId?, cwd?}`） |
 | `GET /api/sessions/:id/history` | 会话历史 |

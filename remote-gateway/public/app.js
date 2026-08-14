@@ -4,8 +4,11 @@
 // ── 国际化 ──────────────────────────────────────────────────────────────
 const I18N = {
   zh: {
-    appName: 'DSH 远程控制', passwordHint: '请输入访问密码（电脑端 remote-gateway/.env 中的 GATEWAY_PASSWORD）',
-    connect: '登录', logout: '退出', tabSessions: '会话', tabWorkspaces: '工作区',
+    appName: 'DSH 远程控制', settings: '设置', language: '语言 / Language',
+    password: '密码', saveLogin: '保存并登录', oldPassword: '原密码', newPassword: '新密码（至少 8 位）',
+    changePassword: '修改密码', needLogin: '未连接：请点击右上角 ⚙ 输入密码',
+    logout: '退出登录', loggedOut: '已退出登录', weakPassword: '新密码至少 8 位', passwordChanged: '密码已修改',
+    tabSessions: '会话', tabWorkspaces: '工作区',
     newSession: '新建会话', workspace: '工作区', cwd: '工作目录（留空用工作区路径）', create: '创建',
     send: '发送', inputPlaceholder: '消息（/ 开头为命令）', selectModel: '选择模型',
     sessionActions: '会话操作', rename: '重命名', fork: '派生副本', cancelRun: '停止运行',
@@ -19,8 +22,11 @@ const I18N = {
     error: '出错了', tools: '工具', emptyMsg: '还没有消息',
   },
   en: {
-    appName: 'DSH Remote', passwordHint: 'Enter the access password (GATEWAY_PASSWORD in remote-gateway/.env on the PC)',
-    connect: 'Sign in', logout: 'Log out', tabSessions: 'Sessions', tabWorkspaces: 'Workspaces',
+    appName: 'DSH Remote', settings: 'Settings', language: 'Language',
+    password: 'Password', saveLogin: 'Save & sign in', oldPassword: 'Current password', newPassword: 'New password (min 8 chars)',
+    changePassword: 'Change password', needLogin: 'Not connected: tap ⚙ and enter the password',
+    logout: 'Sign out', loggedOut: 'Signed out', weakPassword: 'New password must be at least 8 characters', passwordChanged: 'Password changed',
+    tabSessions: 'Sessions', tabWorkspaces: 'Workspaces',
     newSession: 'New session', workspace: 'Workspace', cwd: 'Working dir (blank = workspace path)', create: 'Create',
     send: 'Send', inputPlaceholder: 'Message (starts with / for commands)', selectModel: 'Select model',
     sessionActions: 'Session actions', rename: 'Rename', fork: 'Fork copy', cancelRun: 'Stop',
@@ -40,6 +46,7 @@ const t = (k) => I18N[lang][k] ?? k
 // ── 全局状态 ────────────────────────────────────────────────────────────
 let token = localStorage.getItem('gw-token') || ''
 const state = {
+  connected: false,
   workspaces: [], sessions: [], activeWs: null,
   detail: null,           // { sessionId, title, cwd, running }
   history: new Map(),     // sessionId -> HistoryEntry[]
@@ -87,6 +94,7 @@ async function api(path, opts = {}) {
     headers: { authorization: `Bearer ${token}`, ...(opts.body ? { 'content-type': 'application/json' } : {}) },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   })
+  if (res.status === 401 && token) forceLogout() // 令牌失效 → 回到未连接状态
   let data = null
   try { data = await res.json() } catch { /* ignore */ }
   if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`)
@@ -161,7 +169,7 @@ async function refreshSessions() {
     const data = await api('/api/sessions')
     state.sessions = data.items || []
     renderSessions()
-  } catch (err) { toast(`${t('error')}: ${err.message}`) }
+  } catch (err) { if (state.connected) toast(`${t('error')}: ${err.message}`) }
 }
 
 async function refreshWorkspaces() {
@@ -170,7 +178,7 @@ async function refreshWorkspaces() {
     state.workspaces = data.items || []
     renderWorkspaces()
     renderWorkspaceChips()
-  } catch (err) { toast(`${t('error')}: ${err.message}`) }
+  } catch (err) { if (state.connected) toast(`${t('error')}: ${err.message}`) }
 }
 
 function refreshSessionBadge(sessionId) {
@@ -514,32 +522,67 @@ function setLang(next) {
   lang = next
   localStorage.setItem('gw-lang', lang)
   document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
-  $('#lang-toggle').textContent = lang === 'zh' ? 'EN' : '中文'
   document.querySelectorAll('[data-i18n]').forEach((n) => { n.textContent = t(n.dataset.i18n) })
   $('#input').placeholder = t('inputPlaceholder')
   renderSessions(); renderWorkspaces(); renderApprovals()
   if (state.detail) renderDetailHeader()
 }
 
-function showLogin() {
-  $('#login').classList.remove('hidden')
-  $('#app').classList.add('hidden')
+// ── 连接状态与设置 ──────────────────────────────────────────────────────
+function forceLogout() {
+  token = ''
+  localStorage.removeItem('gw-token')
+  state.connected = false
+  state.es?.close()
+  state.es = null
+  $('#status-dot').classList.remove('on')
+  $('#need-login').classList.remove('hidden')
+  renderSessions()
+  renderWorkspaces()
 }
 
-function enterApp() {
-  $('#login').classList.add('hidden')
-  $('#app').classList.remove('hidden')
-  setLang(lang)
+function connectAll() {
+  state.connected = true
+  $('#need-login').classList.add('hidden')
+  $('#status-dot').classList.add('on')
   connectSSE()
   refreshWorkspaces()
   refreshSessions()
 }
 
+/** 启动：有令牌则先校验，无效即回到未连接状态（保证设置页始终可达）。 */
+async function boot() {
+  setLang(lang)
+  if (!token) { renderSessions(); renderWorkspaces(); return }
+  try {
+    const data = await api('api/health')
+    if (data?.ok) connectAll()
+    else throw new Error('bad health')
+  } catch {
+    forceLogout()
+  }
+}
+
+function renderSettingsState() {
+  $('#set-change-area').classList.toggle('hidden', !state.connected)
+  $('#set-logout').classList.toggle('hidden', !state.connected)
+  $('#lang-zh').classList.toggle('active', lang === 'zh')
+  $('#lang-en').classList.toggle('active', lang === 'en')
+}
+
 // ── 事件绑定 ────────────────────────────────────────────────────────────
-$('#token-submit').onclick = async () => {
-  const value = $('#token-input').value.trim()
+$('#settings-btn').onclick = () => {
+  $('#set-msg').textContent = ''
+  renderSettingsState()
+  $('#settings').classList.remove('hidden')
+}
+$('#settings-close').onclick = () => $('#settings').classList.add('hidden')
+$('#lang-zh').onclick = () => { setLang('zh'); renderSettingsState() }
+$('#lang-en').onclick = () => { setLang('en'); renderSettingsState() }
+$('#set-login').onclick = async () => {
+  const value = $('#set-password').value.trim()
   if (!value) return
-  $('#login-error').textContent = ''
+  $('#set-msg').textContent = ''
   try {
     const res = await fetch('api/login', {
       method: 'POST',
@@ -550,18 +593,41 @@ $('#token-submit').onclick = async () => {
     if (!res.ok || !data?.token) throw new Error(data?.error?.message || `HTTP ${res.status}`)
     token = data.token
     localStorage.setItem('gw-token', token)
-    enterApp()
+    $('#set-password').value = ''
+    connectAll()
+    renderSettingsState()
+    toast(t('passwordSaved'))
   } catch (err) {
-    $('#login-error').textContent = t('badPassword')
+    $('#set-msg').textContent = t('badPassword')
   }
 }
-$('#logout-btn').onclick = () => {
-  token = ''
-  localStorage.removeItem('gw-token')
-  state.es?.close()
-  showLogin()
+$('#set-change').onclick = async () => {
+  const oldPw = $('#set-old').value
+  const newPw = $('#set-new').value
+  $('#set-msg').textContent = ''
+  if (newPw.length < 8) { $('#set-msg').textContent = t('weakPassword'); return }
+  try {
+    const res = await fetch('api/password', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ oldPassword: oldPw, newPassword: newPw }),
+    })
+    const data = await res.json().catch(() => null)
+    if (!res.ok || !data?.token) throw new Error(data?.error?.message || `HTTP ${res.status}`)
+    token = data.token // 改密后网关签发新令牌，保持登录
+    localStorage.setItem('gw-token', token)
+    $('#set-old').value = ''
+    $('#set-new').value = ''
+    toast(t('passwordChanged'))
+  } catch (err) {
+    $('#set-msg').textContent = err.message || t('badPassword')
+  }
 }
-$('#lang-toggle').onclick = () => setLang(lang === 'zh' ? 'en' : 'zh')
+$('#set-logout').onclick = () => {
+  $('#settings').classList.add('hidden')
+  forceLogout()
+  toast(t('loggedOut'))
+}
 $('#tab-sessions').onclick = () => {
   $('#tab-sessions').classList.add('active'); $('#tab-workspaces').classList.remove('active')
   $('#view-sessions').classList.remove('hidden'); $('#view-workspaces').classList.add('hidden')
@@ -610,5 +676,4 @@ $('#input').addEventListener('input', (e) => {
 })
 
 // ── 启动 ────────────────────────────────────────────────────────────────
-setLang(lang)
-if (token) { enterApp() } else { showLogin() }
+boot()

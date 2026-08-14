@@ -1,7 +1,7 @@
 // remote-gateway 入口：零依赖（Node ≥22 内置 http/WebSocket）。
 // 对外提供受 Token 保护的 REST API 与 SSE 事件流；对内连接本机 dsh。
 import { createServer } from 'node:http'
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { extname, join, normalize, relative, resolve, isAbsolute, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DshClient } from './lib/dsh.js'
@@ -205,6 +205,35 @@ const routes = {
     await dsh.respond(params.rpcId, { sessionId, approvalId, outcome })
     return { accepted: true }
   },
+  // 修改密码：校验原密码 → 写 .env → 热更新认证 → 返回新令牌（旧令牌立即失效）
+  async 'POST /api/password'(req, res, body) {
+    if (typeof body.oldPassword !== 'string' || typeof body.newPassword !== 'string') {
+      return sendError(res, 400, 'invalid-password', 'oldPassword 与 newPassword 必填')
+    }
+    if (body.newPassword.length < 8) {
+      return sendError(res, 400, 'weak-password', '新密码至少 8 位')
+    }
+    if (!auth.check(body.oldPassword)) {
+      return sendError(res, 401, 'bad-password', '原密码错误')
+    }
+    writeEnvPassword(body.newPassword)
+    auth.setPassword(body.newPassword)
+    audit(`200 POST /api/password ip=${req.socket.remoteAddress ?? '?'}（密码已修改）`)
+    return { ok: true, token: auth.mint() }
+  },
+}
+
+/** 将新密码写回 .env（GATEWAY_PASSWORD 行替换或追加）。 */
+function writeEnvPassword(next) {
+  const file = join(ROOT, '.env')
+  let text = ''
+  try { text = readFileSync(file, 'utf8') } catch { /* 不存在则新建 */ }
+  if (/^GATEWAY_PASSWORD=.*$/m.test(text)) {
+    text = text.replace(/^GATEWAY_PASSWORD=.*$/m, `GATEWAY_PASSWORD=${next}`)
+  } else {
+    text += (text.endsWith('\n') ? '' : '\n') + `GATEWAY_PASSWORD=${next}\n`
+  }
+  writeFileSync(file, text)
 }
 
 function paramsOf(req) { return req.__params ?? {} }
