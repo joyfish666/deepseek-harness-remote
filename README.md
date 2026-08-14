@@ -101,6 +101,63 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 
 ---
 
+## 取消远程访问（恢复到原始状态）
+
+分两个层次：**暂时关闭**（配置保留，随时恢复）和**彻底还原**（撤销全部改动）。
+
+### 方案 A：暂时关闭（推荐，随时可恢复）
+
+```powershell
+tailscale serve --https=443 off    # 关闭转发，手机立即无法访问
+```
+
+重新开启：`tailscale serve --bg 3080` 即可。dsh 和自启任务都无需改动。
+
+### 方案 B：彻底还原（撤销全部配置）
+
+按顺序执行：
+
+1. **停用 dsh 开机自启**：
+
+   ```powershell
+   Unregister-ScheduledTask -TaskName dsh-web
+   ```
+
+2. **关闭并清除 serve 转发**：
+
+   ```powershell
+   tailscale serve --https=443 off
+   tailscale serve status    # 应显示 No serve config
+   ```
+
+3. **恢复 dsh 信任围栏配置**：把 `~/.dsh/profiles/web/cordis.patch.yml`（Windows 为 `%USERPROFILE%\.dsh\...`）恢复为初始内容：
+
+   ```yaml
+   # Your patch layer for this dsh profile, applied after every bundle layer:
+   # a top-level YAML array of loader patch entries (id-targeted config
+   # overrides, disables, and insert lists; `!!js` expressions allowed).
+   []
+   ```
+
+   补丁文件热重载生效，**无需重启 dsh**。
+
+4. **（可选）退出/卸载 Tailscale**：电脑端 `tailscale logout`（或系统设置中卸载）；手机端退出账号或卸载 App。卸载会一并清除 serve 配置。
+
+5. **验证恢复**：
+
+   - 手机打开原地址 → 无法连接；
+   - 电脑本地 `http://127.0.0.1:3080` → 一切正常；
+   - 围栏回归：`curl -H "Host: <任意tailnet地址>" http://127.0.0.1:3080/api/session.list` → 返回 `403`。
+
+6. **（可选）清理日志**：`Remove-Item $HOME\.dsh\logs\dsh-web.log`。
+
+### 不受影响的部分
+
+- 本仓库（README / 脚本）只是文档与工具，删除或保留都不影响电脑功能；彻底不要可删除 GitHub 远端仓库与本地 `.git` 目录。
+- dsh 的会话、设置等数据不受任何影响。
+
+---
+
 ## 安全说明
 
 - **可达性**：仅同一 tailnet 内的设备可访问（Tailscale 设备身份 = 认证）；tailnet 之外不可达。
