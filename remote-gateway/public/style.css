@@ -91,6 +91,15 @@ textarea { resize: none; }
 .msg.cursor::after { content: "▋"; animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
+/* 折叠卡片（工具调用 / 思考） */
+.collapsible { cursor: pointer; }
+.tool-head { font-weight: 600; }
+.tool-body { margin-top: 6px; white-space: pre-wrap; word-break: break-word; font-size: 12px; color: var(--text); }
+.tool-args { color: var(--muted); margin-bottom: 6px; }
+.tool-result { color: var(--ok); font-weight: 600; margin-top: 6px; }
+.tool-result-text { margin-top: 4px; }
+.thinking { border-left: 3px solid var(--muted); }
+
 /* 审批横幅 */
 .approval-area { padding: 0 14px; }
 .approval { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 14px; padding: 12px; margin-bottom: 10px; }

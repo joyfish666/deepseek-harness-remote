@@ -20,7 +20,7 @@ const I18N = {
     questionTitle: '电脑端有待处理的提问', passwordSaved: '登录成功', badPassword: '密码错误，请重试',
     connected: '已连接', disconnected: '未连接', sent: '已发送', cancelled: '已停止',
     modelChanged: '模型已切换', renamed: '已重命名', forked: '已创建副本', created: '会话已创建',
-    error: '出错了', tools: '工具', emptyMsg: '还没有消息',
+    error: '出错了', tools: '工具', emptyMsg: '还没有消息', thinking: '💭 思考（点击展开）',
   },
   en: {
     appName: 'DSH Remote', settings: 'Settings', language: 'Language',
@@ -39,7 +39,7 @@ const I18N = {
     questionTitle: 'There is a pending question on the PC', passwordSaved: 'Signed in', badPassword: 'Wrong password, try again',
     connected: 'Connected', disconnected: 'Disconnected', sent: 'Sent', cancelled: 'Stopped',
     modelChanged: 'Model changed', renamed: 'Renamed', forked: 'Forked', created: 'Session created',
-    error: 'Error', tools: 'tools', emptyMsg: 'No messages yet',
+    error: 'Error', tools: 'tools', emptyMsg: 'No messages yet', thinking: '💭 Thinking (tap to expand)',
   },
 }
 let lang = localStorage.getItem('gw-lang') || (navigator.language || '').startsWith('zh') ? 'zh' : 'en'
@@ -123,7 +123,7 @@ function handleMux(env) {
   switch (env.method) {
     case 'session/event':
       if (state.detail && p.sessionId === state.detail.sessionId) {
-        appendLiveEvent(p.event)
+        appendLiveEvent(p.event, p.view)
         scheduleScroll()
       }
       break
@@ -304,7 +304,8 @@ function flushNode(node) {
   node._flushTimer = setTimeout(() => {
     node._flushTimer = null
     if (node._parts && node._parts.length) {
-      node.textContent = node._parts.join('')
+      const target = node._partsTarget || node
+      target.textContent = node._parts.join('')
       node._parts.length = 0
     }
   }, 80)
@@ -314,9 +315,33 @@ function flushNode(node) {
 function flushNodeNow(node) {
   if (node._flushTimer) { clearTimeout(node._flushTimer); node._flushTimer = null }
   if (node._parts && node._parts.length) {
-    node.textContent = node._parts.join('')
+    const target = node._partsTarget || node
+    target.textContent = node._parts.join('')
     node._parts.length = 0
   }
+}
+
+/** 按块类型拆分内容：正文文本与思考文本分开（与桌面版一致：思考默认折叠）。 */
+function splitBlocks(blocks) {
+  let text = ''
+  let reasoning = ''
+  for (const b of blocks || []) {
+    if (!b || typeof b.text !== 'string') continue
+    if (b.type === 'reasoning') reasoning += (reasoning ? '\n' : '') + b.text
+    else text += b.text
+  }
+  return { text, reasoning }
+}
+
+/** 折叠卡片：头行 + 可展开体（点击切换）。 */
+function collapsibleCard(headText, bodyChildren = []) {
+  const card = el('div', 'msg tool collapsible')
+  const head = el('div', 'tool-head', headText)
+  const body = el('div', 'tool-body hidden')
+  for (const child of bodyChildren) body.appendChild(child)
+  card.append(head, body)
+  card.onclick = () => body.classList.toggle('hidden')
+  return { card, body }
 }
 
 async function loadHistory(sessionId) {
@@ -335,7 +360,7 @@ async function loadHistory(sessionId) {
       const timer = setInterval(() => {
         if (gen !== state.historyGen) { clearInterval(timer); resolve(); return } // 会话已切换
         const batch = queue.splice(0, 60)
-        for (const entry of batch) appendLiveEvent(entry.event || entry)
+        for (const entry of batch) appendLiveEvent(entry.event || entry, entry.view)
         if (!queue.length) { clearInterval(timer); resolve() }
       }, 0)
     })
@@ -349,8 +374,8 @@ async function loadHistory(sessionId) {
   }
 }
 
-/** 追加一条会话事件（历史与实时共用）。SessionEvent 载荷在 ev.data 内。 */
-function appendLiveEvent(ev) {
+/** 追加一条会话事件（历史与实时共用）。SessionEvent 载荷在 ev.data 内；view 为 host 计算的展示视图。 */
+function appendLiveEvent(ev, view) {
   const box = $('#messages')
   const d = state.detail
   if (!d) return
@@ -363,19 +388,32 @@ function appendLiveEvent(ev) {
     case 'assistant/chunk': {
       const text = typeof data.chunk?.text === 'string' ? data.chunk.text : ''
       if (!text) break
-      let node = pending ? pending.el : null
+      const isReasoning = data.chunk.type === 'reasoning-delta'
+      let node = pending ? (isReasoning ? pending.think : pending.el) : null
       if (!node) {
-        node = el('div', 'msg assistant cursor')
-        node._parts = [] // 分块累积，限频刷写（见 flushNode）
-        box.appendChild(node)
-        state.pendingAssistant.set(d.sessionId, { el: node })
+        if (isReasoning) {
+          // 思考：默认折叠的独立卡片（与桌面版一致）
+          const c = collapsibleCard(t('thinking'))
+          node = c.card
+          node._parts = []
+          node._partsTarget = c.body
+          box.appendChild(node)
+        } else {
+          node = el('div', 'msg assistant cursor')
+          node._parts = []
+          box.appendChild(node)
+        }
+        if (!pending) pending = {}
+        if (isReasoning) pending.think = node
+        else pending.el = node
+        state.pendingAssistant.set(d.sessionId, pending)
       }
       node._parts.push(text)
       flushNode(node)
       break
     }
     case 'assistant/message': {
-      const text = contentText(data.message?.content)
+      const { text, reasoning } = splitBlocks(data.message?.content)
       const node = pending ? pending.el : null
       if (node) {
         flushNodeNow(node)
@@ -384,18 +422,51 @@ function appendLiveEvent(ev) {
       } else if (text) {
         box.appendChild(el('div', 'msg assistant', text))
       }
+      // 思考块：优先并入流式卡片；历史无 chunk 时（如压缩后）新建折叠卡片
+      if (reasoning) {
+        let think = pending?.think
+        if (!think) {
+          const c = collapsibleCard(t('thinking'))
+          think = c.card
+          think._partsTarget = c.body
+          box.appendChild(think)
+        } else {
+          flushNodeNow(think)
+        }
+        think._partsTarget.textContent = reasoning
+      } else if (pending?.think) {
+        flushNodeNow(pending.think)
+        if (!pending.think._partsTarget.textContent) pending.think.remove() // 无思考内容则移除卡片
+      }
       state.pendingAssistant.set(d.sessionId, null)
       break
     }
     case 'tool/call': {
-      let args = ''
-      try { args = String(data.arguments ?? '').slice(0, 160) } catch { /* ignore */ }
-      box.appendChild(el('div', 'msg tool', `🔧 ${data.name || 'tool'}${args ? `  ${args}` : ''}`))
+      // 折叠卡片：标题用 host 计算的 view.title（如文件路径），点击展开参数
+      const { card, body } = collapsibleCard(`🔧 ${view?.title || data.name || 'tool'}`)
+      if (data.callId) card.dataset.callId = data.callId
+      if (typeof data.arguments === 'string' && data.arguments) {
+        body.appendChild(el('div', 'tool-args', data.arguments))
+      }
+      box.appendChild(card)
       break
     }
-    case 'tool/result':
-      box.appendChild(el('div', 'msg tool', data.error ? `✖ ${data.error.name ?? 'error'}` : '✔ ok'))
+    case 'tool/result': {
+      // 结果并入对应调用卡片（按 callId 配对）；无卡片时独立折叠
+      const target = data.callId ? box.querySelector(`[data-callid="${CSS.escape(data.callId)}"]`) : null
+      const body = target ? target.querySelector('.tool-body') : null
+      const line = el('div', 'tool-result', data.error ? `✖ ${data.error.name ?? 'error'}` : '✔ ok')
+      const text = contentText(data.message?.content)
+      if (body) {
+        body.appendChild(line)
+        if (text) body.appendChild(el('div', 'tool-result-text', text))
+      } else {
+        const c = collapsibleCard(data.error ? `✖ ${data.error.name ?? 'error'}` : '✔ ok')
+        if (text) c.body.appendChild(el('div', 'tool-result-text', text))
+        box.appendChild(c.card)
+      }
       break
+    }
     case 'stream/error':
       box.appendChild(el('div', 'msg error', `${t('error')}: ${data.message || ''}`))
       break
