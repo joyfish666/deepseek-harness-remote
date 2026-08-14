@@ -131,6 +131,43 @@ Phase 3 是 Phase 2 的"能力补强"，两者可并存：网关先走 `/api`，
 
 ---
 
+## 7. M1 实施记录（2026 本机实测）
+
+> 以下为已在本机（Windows）实际执行的步骤与配置，Tailscale 值见本机 `tailscale status`。
+
+### 已完成
+
+1. **Tailscale 组网**：电脑 `desktop-joyfish` 与手机 `redmi-k70e` 已加入同一 tailnet（手机需安装 Tailscale App 并登录同一账号）。
+2. **trustedHosts 补丁**（已热重载生效，无需重启 dsh）：写入 `~/.dsh/profiles/web/cordis.patch.yml`：
+
+   ```yaml
+   - id: connection
+     config:
+       trustedHosts: !!js "[<tailnet-ip>, '<machine>.<tailnet>.ts.net', ...ctx.webRuntime.trustedHosts]"
+   ```
+
+   - 作用：让 `/api` 信任围栏放行来自 tailnet 的请求（Host 命中 trustedHosts）；未信任 Host 仍返回 403。
+   - 验证：`curl -H "Host: <tailnet-ip>" http://127.0.0.1:3080/api/session.list` 由 403 → 404（围栏放行，404 为路径不合法）；未知 Host 仍 403。
+   - **格式坑**：`!!js` 标签只接受单个 YAML 标量——整个 JS 表达式必须用引号包裹成字符串；带空格的裸流式数组会导致启动解析失败（fail-loud）。
+   - 该文件由 dsh 的 `watchUserPatches`（Cordis HMR）热重载，事务性重应用，改完即时生效。
+
+3. **tailscale serve**：`tailscale serve --bg 3080`（把 `https://<tailnet-ip>/` 与 `https://<machine>.<tailnet>.ts.net/` 转发到本机 `127.0.0.1:3080`）。注意：**首次使用需 tailnet 管理员在 `https://login.tailscale.com/f/serve?node=<node>` 启用 Serve 功能**（安全开关，一个页面开关）。
+
+### 手机端使用
+
+1. 手机浏览器打开 `https://<tailnet-ip>/`（或 MagicDNS 域名）。
+2. 需要 TLS 证书信任（Tailscale 为 tailnet IP / MagicDNS 域名签发证书）。
+3. 之后即可远程建会话、发任务、看状态、处理审批。
+
+### 安全边界（重要）
+
+- 仅 tailnet 内设备可达（Tailscale 设备身份 = 认证）；`/api` 围栏对 trustedHosts 放行、对其余 Host 拒绝。
+- 特权方法（settings / credentials / host.* 等）仍被上游钉在 loopback，远程不可用。
+- 不要改用 `tailscale funnel`（会暴露到公网）。
+- 若以后机器 IP 变化（Tailscale IP 通常稳定），同步更新补丁里的 IP 即可；MagicDNS 域名不变。
+
+---
+
 ## 6. 风险与对策
 
 | 风险 | 对策 |
