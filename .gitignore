@@ -1,0 +1,25 @@
+# 官方上游代码（本地参考用，不纳入版本控制）
+deepseek-harness-master/
+
+# Node / build
+node_modules/
+lib/
+dist/
+*.tsbuildinfo
+pnpm-debug.log
+
+# Env & secrets
+.env
+.env.local
+
+# Runtime data
+.storages/
+.sessions/
+sessions/
+tmp/
+coverage/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
