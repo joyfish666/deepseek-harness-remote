@@ -76,6 +76,31 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 
 ---
 
+## 开机自启（推荐）
+
+重启电脑后，**Tailscale 服务和 serve 转发会自动恢复**（Tailscale 是系统服务，serve 配置持久保存），但 **dsh 本体不会自启**，需要手动配置。仓库提供了自启脚本 `scripts/start-dsh.ps1`：
+
+1. 注册计划任务（登录时自动启动；dsh 崩溃后 10 秒自动重启；若 3080 已被占用则直接退出避免双实例）：
+
+   ```powershell
+   $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
+     -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<仓库路径>\scripts\start-dsh.ps1"'
+   $trigger = New-ScheduledTaskTrigger -AtLogOn
+   $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
+   Register-ScheduledTask -TaskName 'dsh-web' -Action $action -Trigger $trigger -Settings $settings -Force
+   ```
+
+2. 脚本日志：`~/.dsh/logs/dsh-web.log`（启动、退出码、重启记录）。
+3. 管理命令：
+
+   | 操作 | 命令 |
+   |---|---|
+   | 查看任务 | `Get-ScheduledTask -TaskName dsh-web` |
+   | 停用自启 | `Unregister-ScheduledTask -TaskName dsh-web` |
+   | 查看日志 | `Get-Content $HOME\.dsh\logs\dsh-web.log -Tail 50` |
+
+---
+
 ## 安全说明
 
 - **可达性**：仅同一 tailnet 内的设备可访问（Tailscale 设备身份 = 认证）；tailnet 之外不可达。
