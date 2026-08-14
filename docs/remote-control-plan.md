@@ -279,9 +279,31 @@ remote-gateway/
 | M2.3 安全加固 | Token、限流、审计日志 | 无 Token → 401；未信任 Host → 403；日志可追溯 |
 | M2.4 部署整合 | serve 路径/端口、自启、README | 重启后手机全流程可用；dsh 零改动 |
 
-### 8.9 待确认决策点
+### 8.9 待确认决策点（已定：单静态 Token / 保留官方 GUI / 路径 /m/ / 中英双语默认跟随系统）
 
-1. 认证方式：**单静态 Token（推荐 v1）** vs 用户名+密码会话。
-2. 官方 GUI（M1）是否保留：**推荐保留**（同一域名不同路径）。
-3. 网关暴露端口/路径：路径 `/m/`（推荐） vs 独立端口。
-4. UI 语言：中文。
+---
+
+## 9. M2 实施记录（已落地）
+
+### 交付内容
+
+- `remote-gateway/`：**零依赖** Node ≥22 网关（无任何 npm 依赖——内置 http + 内置 WebSocket 客户端 + SSE 替代 WS 服务端）+ 移动端 PWA（`public/`）。
+- 网关协议：复用官方 `/api`（RPC 信封 `{type:'client-request',rpcId,method,payload}` + `events.mux`/`events.host` 下行 WS，`POST /api/respond` 回填审批 rpcId）。
+- 方法目录（协议契约）：上游 `packages/host/apiproxy/src/api/rpc-map.ts`——session.*（list/create/prompt/cancel/selectModel/rename/fork/history/models）、workspace.*、host.listDirectory、llm.models/providers 等。
+- 移动端功能：会话列表（按工作区筛选）、新建会话、实时消息流（SSE）、发送消息与斜杠命令、审批（允许一次/拒绝）、停止运行、重命名/派生、模型选择、工作区文件浏览（越界 403）、中英双语（默认跟随系统）。
+- 认证：Bearer Token（`.env`，gitignore 排除）+ 限流 + 审计日志（`~/.dsh/logs/gateway-audit.log`）。
+
+### 关键实测结论
+
+1. **目录选择 seam 必须换 browse**：`host.listDirectory` 仅 browse 能力提供；本机默认解析为 native。已在 profile 补丁禁用 `directory-picker`（auto）并插入 `directory-picker-browse` 行（热重载生效；副作用：桌面端选择工作区也变浏览器内浏览，属官方 seam 换点）。
+2. **Node 内置 WebSocket 客户端可直连 dsh**（无需 ws 包）；手机侧用 SSE（EventSource 自带重连）替代 WS 服务端——整链零依赖。
+3. **SSE 帧封装**：网关向外广播 `{kind:'mux'|'host', frame:{...}}`，frame 才是 dsh 信封（`{type:'server-request',rpcId,method,payload}`）；消费方需解一层。
+4. **子路径挂载**：tailscale serve 同一 443 端口双路径（`/` → dsh GUI 3080，`/m` → 网关 3100）；UI 必须用相对路径 + 无尾斜杠自动跳转（`/m` 会 200 而非重定向）。
+5. **验收脚本** `remote-gateway/tests/e2e.mjs`：15/15 通过（401 拦截、健康、工作区+文件+越界 403、建会话、发消息、SSE 实时 user/chunk/assistant、取消、历史、重命名）。网关 socket 稳定性经诊断日志验证（mux/host 常开，dsh 重启自动重连）。
+6. 测试会话已归档（workspace.archiveSession，wire 路径为 `/api/workspace.archiveSession`——注意是带点的完整方法名）。
+
+### 部署现状
+
+- `tailscale serve`：`/` → 3080（官方 GUI），`/m` → 3100（网关）。
+- 开机自启任务：`dsh-web`（dsh）、`dsh-gateway`（网关），均带端口占用保护 + 看门狗 + 日志（`~/.dsh/logs/`）。
+- 手机入口：`https://<machine>.<tailnet>.ts.net/m/` + 令牌；可"添加到主屏幕"作为 App 使用。

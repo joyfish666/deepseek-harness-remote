@@ -1,0 +1,13 @@
+{
+  "name": "remote-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mobile gateway for DeepSeek Harness: secure REST/SSE bridge to the local dsh web instance",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "DSH 远程控制",
+  "short_name": "DSH 远程",
+  "description": "Remote control for DeepSeek Harness running on your computer",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -2,7 +2,12 @@
 
 在本地运行 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）的基础上，实现**远程控制**：让手机、平板、其他电脑通过网络远程启动任务、查看运行状态、管理会话。
 
-当前已实现 **M1：Tailscale 隧道 + 官方 Web UI**——无需改动 dsh 任何代码，手机浏览器即可获得与电脑一致的完整控制界面。后续规划见 [方案文档](docs/remote-control-plan.md)（自建移动端网关等）。
+当前已实现：
+
+- **M1：Tailscale 隧道 + 官方 Web UI**——无需改动 dsh 任何代码，手机浏览器即可获得与电脑一致的完整控制界面。
+- **M2：手机 App（自建网关 + PWA）**——`remote-gateway/` 零依赖网关 + 移动端应用：新建会话、查看工作区与文件、同步会话、发消息与命令、模型选择、审批、多语言（跟随系统），带 Token 认证与审计日志。
+
+后续规划见 [方案文档](docs/remote-control-plan.md)。
 
 ---
 
@@ -75,6 +80,72 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 手机端获得与电脑一致的完整 GUI：新建会话、发送任务、查看实时状态（消息流、令牌用量、工具调用）、处理审批请求，全部可用。
 
 ---
+
+---
+
+## 手机 App（M2：自建网关 + PWA）
+
+> 在手机上像原生 App 一样使用的移动端客户端（PWA：可"添加到主屏幕"，全屏独立运行，无地址栏）。会话、项目、模型调用全部在电脑上运行，手机只是遥控器与显示器。
+
+### 功能
+
+| 功能 | 说明 |
+|---|---|
+| 新建会话 | 选择工作区/工作目录 |
+| 查看工作区 | 工作区列表 + **文件浏览**（仅限工作区内，越界拒绝） |
+| 同步会话 | 与电脑端实时同步：同一批会话，双向可见，状态实时刷新 |
+| 输入命令 | 消息以 `/` 开头即执行斜杠命令（与电脑端一致） |
+| 模型选择 | 查看模型目录并按会话切换（DeepSeek / 自定义 provider） |
+| 审批 | 需要审批的操作推送到手机，远程"允许一次 / 拒绝" |
+| 停止运行 | 随时取消正在运行的任务 |
+| 多语言 | 中文 / English，默认跟随系统语言，可手动切换 |
+
+### 使用步骤
+
+1. **启动网关**（电脑上）：
+
+   ```sh
+   cd remote-gateway
+   node server.js
+   ```
+
+   > 网关零依赖（Node ≥ 22 内置能力），只监听 `127.0.0.1`。已配置开机自启任务 `dsh-gateway`（见下节）。
+
+2. **获取访问令牌**：打开 `remote-gateway/.env`，`GATEWAY_TOKEN=` 后的字符串就是令牌（未生成时用 `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"` 生成并写入）。
+
+3. **手机访问**（Tailscale 保持连接）：浏览器打开
+
+   ```
+   https://<你的机器名>.<你的tailnet>.ts.net/m/
+   ```
+
+   首次输入令牌并连接。Chrome 菜单 → **添加到主屏幕** 后即可像 App 一样全屏使用。
+
+4. **验证**：手机上能看到与电脑端相同的会话列表；新建会话 → 发一条消息 → 实时看到流式回复。
+
+### 网关 API（开发者参考）
+
+| 端点 | 说明 |
+|---|---|
+| `GET /api/health` | 网关与 dsh 连接状态 |
+| `GET /api/sessions` / `POST /api/sessions` | 会话列表 / 新建（`{workspaceId?, cwd?}`） |
+| `GET /api/sessions/:id/history` | 会话历史 |
+| `POST /api/sessions/:id/prompt` | 发消息 `{text, mode?: 'queue'\|'steer'}`（`/` 开头为命令） |
+| `POST /api/sessions/:id/cancel` | 停止运行 |
+| `POST /api/sessions/:id/selectModel` | 切换模型 `{provider, model, reasoningEffort?}` |
+| `POST /api/sessions/:id/rename` / `fork` | 重命名 / 派生副本 |
+| `GET /api/workspaces` / `POST /api/workspaces` | 工作区列表 / 添加 |
+| `GET /api/workspaces/:id/files?path=` | 工作区文件浏览（越界 403） |
+| `GET /api/models` / `GET /api/providers` | 模型目录 / 提供商 |
+| `POST /api/approvals/:rpcId` | 审批应答 `{sessionId, approvalId, outcome}` |
+| `GET /api/stream?token=` | SSE 实时事件流（mux/host 帧） |
+
+认证：`Authorization: Bearer <token>`；无令牌一律 401；访问审计写入 `~/.dsh/logs/gateway-audit.log`。
+
+### 已知说明
+
+- 启用文件浏览需要 dsh 的 browse 能力：已在 `~/.dsh/profiles/web/cordis.patch.yml` 中将目录选择器从 native 换为 browse（副作用：电脑端"选择工作区"也改为浏览器内浏览，属官方 seam 换点）。
+- 网关与 dsh 之间走官方 `/api` 协议（RPC 信封 + events.mux/host 事件流），dsh 重启后网关自动重连。
 
 ## 开机自启（推荐）
 
@@ -175,19 +246,23 @@ tailscale serve --https=443 off    # 关闭转发，手机立即无法访问
 | 命令行找不到 `tailscale` | Windows 上使用完整路径：`C:\Program Files\Tailscale\tailscale.exe` |
 | 想用 IP 访问 | 不支持，请用域名 |
 | 重启电脑后手机连不上 | 确认 Tailscale 已随系统启动、`tailscale serve status` 显示运行中（serve 配置持久保存，通常无需重配） |
+| 网关页面 401 / 连不上 | 检查 `remote-gateway/.env` 的 `GATEWAY_TOKEN` 与手机输入是否一致；`Get-ScheduledTask -TaskName dsh-gateway` 查看任务状态 |
+| 网关日志 | `Get-Content $HOME\.dsh\logs\gateway.log -Tail 50`；审计：`gateway-audit.log` |
 
 ## 目录结构
 
 | 路径 | 说明 |
 |---|---|
-| `docs/remote-control-plan.md` | 远程控制整体方案：架构调研、方案对比（隧道 / 网关 / 插件）、路线图（M1 已完成，M2 自建网关规划中） |
+| `remote-gateway/` | **M2 网关**：零依赖 Node 服务（REST + SSE）+ 移动端 PWA（`public/`）+ 端到端验收脚本（`tests/e2e.mjs`） |
+| `scripts/` | 开机自启脚本：`start-dsh.ps1`（dsh）、`start-gateway.ps1`（网关） |
+| `docs/remote-control-plan.md` | 远程控制整体方案：架构调研、方案对比、路线图与 M1/M2 实施记录 |
 | `deepseek-harness-master/` | 官方上游代码（**仅本地参考，不推送 GitHub**，已加入 `.gitignore`） |
 
 ## 路线图
 
 - [x] M1：Tailscale 隧道 + 官方 Web UI 远程访问（本仓库即指南）
-- [ ] M2：自建远程网关（移动端友好界面 + Token 认证 + HTTPS，见方案文档）
-- [ ] M3：可选——dsh 外部插件补强能力
+- [x] M2：自建远程网关 + 手机 App（PWA）：会话/工作区/文件/命令/模型/审批/多语言，Token 认证 + 审计
+- [ ] M3：可选——dsh 外部插件补强能力（如全量事件、会话推送通知）
 
 ## 许可证
 
