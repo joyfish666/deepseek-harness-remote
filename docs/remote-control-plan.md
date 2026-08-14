@@ -137,7 +137,7 @@ Phase 3 是 Phase 2 的"能力补强"，两者可并存：网关先走 `/api`，
 
 ### 已完成
 
-1. **Tailscale 组网**：电脑 `desktop-joyfish` 与手机 `redmi-k70e` 已加入同一 tailnet（手机需安装 Tailscale App 并登录同一账号）。
+1. **Tailscale 组网**：电脑与手机已加入同一 tailnet（手机需安装 Tailscale App 并登录同一账号）。
 2. **trustedHosts 补丁**（已热重载生效，无需重启 dsh）：写入 `~/.dsh/profiles/web/cordis.patch.yml`：
 
    ```yaml
