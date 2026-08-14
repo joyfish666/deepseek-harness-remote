@@ -4,8 +4,8 @@
 // ── 国际化 ──────────────────────────────────────────────────────────────
 const I18N = {
   zh: {
-    appName: 'DSH 远程控制', tokenHint: '请输入访问令牌（电脑端 remote-gateway/.env 中的 GATEWAY_TOKEN）',
-    connect: '连接', logout: '退出', tabSessions: '会话', tabWorkspaces: '工作区',
+    appName: 'DSH 远程控制', passwordHint: '请输入访问密码（电脑端 remote-gateway/.env 中的 GATEWAY_PASSWORD）',
+    connect: '登录', logout: '退出', tabSessions: '会话', tabWorkspaces: '工作区',
     newSession: '新建会话', workspace: '工作区', cwd: '工作目录（留空用工作区路径）', create: '创建',
     send: '发送', inputPlaceholder: '消息（/ 开头为命令）', selectModel: '选择模型',
     sessionActions: '会话操作', rename: '重命名', fork: '派生副本', cancelRun: '停止运行',
@@ -13,14 +13,14 @@ const I18N = {
     addWorkspace: '添加工作区', workspacePath: '工作区目录路径', browsing: '文件浏览', up: '上级',
     running: '运行中', idle: '空闲', blank: '空白', archived: '已归档',
     approvalTitle: '需要审批', allowOnce: '允许一次', reject: '拒绝',
-    questionTitle: '电脑端有待处理的提问', tokenSaved: '令牌已保存', tokenBad: '令牌无效，请检查',
+    questionTitle: '电脑端有待处理的提问', passwordSaved: '登录成功', badPassword: '密码错误，请重试',
     connected: '已连接', disconnected: '未连接', sent: '已发送', cancelled: '已停止',
     modelChanged: '模型已切换', renamed: '已重命名', forked: '已创建副本', created: '会话已创建',
     error: '出错了', tools: '工具', emptyMsg: '还没有消息',
   },
   en: {
-    appName: 'DSH Remote', tokenHint: 'Enter the access token (GATEWAY_TOKEN in remote-gateway/.env on the PC)',
-    connect: 'Connect', logout: 'Log out', tabSessions: 'Sessions', tabWorkspaces: 'Workspaces',
+    appName: 'DSH Remote', passwordHint: 'Enter the access password (GATEWAY_PASSWORD in remote-gateway/.env on the PC)',
+    connect: 'Sign in', logout: 'Log out', tabSessions: 'Sessions', tabWorkspaces: 'Workspaces',
     newSession: 'New session', workspace: 'Workspace', cwd: 'Working dir (blank = workspace path)', create: 'Create',
     send: 'Send', inputPlaceholder: 'Message (starts with / for commands)', selectModel: 'Select model',
     sessionActions: 'Session actions', rename: 'Rename', fork: 'Fork copy', cancelRun: 'Stop',
@@ -28,7 +28,7 @@ const I18N = {
     addWorkspace: 'Add workspace', workspacePath: 'Workspace directory path', browsing: 'Files', up: 'Up',
     running: 'running', idle: 'idle', blank: 'blank', archived: 'archived',
     approvalTitle: 'Approval required', allowOnce: 'Allow once', reject: 'Reject',
-    questionTitle: 'There is a pending question on the PC', tokenSaved: 'Token saved', tokenBad: 'Invalid token',
+    questionTitle: 'There is a pending question on the PC', passwordSaved: 'Signed in', badPassword: 'Wrong password, try again',
     connected: 'Connected', disconnected: 'Disconnected', sent: 'Sent', cancelled: 'Stopped',
     modelChanged: 'Model changed', renamed: 'Renamed', forked: 'Forked', created: 'Session created',
     error: 'Error', tools: 'tools', emptyMsg: 'No messages yet',
@@ -287,50 +287,58 @@ async function loadHistory(sessionId) {
   }
 }
 
-/** 追加一条会话事件（历史与实时共用）。 */
+/** 追加一条会话事件（历史与实时共用）。SessionEvent 载荷在 ev.data 内。 */
 function appendLiveEvent(ev) {
   const box = $('#messages')
   const d = state.detail
   if (!d) return
+  const data = ev.data || {}
   const pending = state.pendingAssistant.get(d.sessionId)
   switch (ev.type) {
     case 'user/message':
-      box.appendChild(el('div', 'msg user', contentText(ev.content)))
+      box.appendChild(el('div', 'msg user', contentText(data.content)))
+      box.scrollTop = box.scrollHeight
       break
     case 'assistant/chunk': {
-      const text = ev.delta && ev.delta.type === 'text' ? ev.delta.text : (typeof ev.delta?.text === 'string' ? ev.delta.text : '')
+      const text = typeof data.chunk?.text === 'string' ? data.chunk.text : ''
       if (!text) break
-      let node = pending && pending.messageId === ev.messageId ? pending.el : null
+      let node = pending ? pending.el : null
       if (!node) {
         node = el('div', 'msg assistant cursor')
         box.appendChild(node)
-        state.pendingAssistant.set(d.sessionId, { messageId: ev.messageId, el: node })
+        state.pendingAssistant.set(d.sessionId, { el: node })
       }
       node.textContent += text
       box.scrollTop = box.scrollHeight
       break
     }
     case 'assistant/message': {
-      const node = pending && pending.messageId === ev.messageId ? pending.el : null
-      if (node) { node.textContent = contentText(ev.content); node.classList.remove('cursor') }
-      else if (contentText(ev.content)) box.appendChild(el('div', 'msg assistant', contentText(ev.content)))
+      const text = contentText(data.message?.content)
+      const node = pending ? pending.el : null
+      if (node) {
+        if (text) node.textContent = text
+        node.classList.remove('cursor')
+      } else if (text) {
+        box.appendChild(el('div', 'msg assistant', text))
+      }
       state.pendingAssistant.set(d.sessionId, null)
       box.scrollTop = box.scrollHeight
       break
     }
     case 'tool/call': {
       let args = ''
-      try { args = JSON.stringify(ev.args).slice(0, 160) } catch { /* ignore */ }
-      box.appendChild(el('div', 'msg tool', `🔧 ${ev.toolName}${args ? `  ${args}` : ''}`))
+      try { args = String(data.arguments ?? '').slice(0, 160) } catch { /* ignore */ }
+      box.appendChild(el('div', 'msg tool', `🔧 ${data.name || 'tool'}${args ? `  ${args}` : ''}`))
       box.scrollTop = box.scrollHeight
       break
     }
     case 'tool/result':
-      box.appendChild(el('div', 'msg tool', `✔ ${ev.ok ? 'ok' : 'error'}`))
+      box.appendChild(el('div', 'msg tool', data.error ? `✖ ${data.error.name ?? 'error'}` : '✔ ok'))
       box.scrollTop = box.scrollHeight
       break
     case 'stream/error':
-      box.appendChild(el('div', 'msg error', `${t('error')}: ${ev.error?.message || ''}`))
+      box.appendChild(el('div', 'msg error', `${t('error')}: ${data.message || ''}`))
+      box.scrollTop = box.scrollHeight
       break
   }
 }
@@ -531,17 +539,20 @@ function enterApp() {
 $('#token-submit').onclick = async () => {
   const value = $('#token-input').value.trim()
   if (!value) return
-  const saved = token
-  token = value
+  $('#login-error').textContent = ''
   try {
-    const data = await api('/api/health')
-    if (!data.ok) throw new Error('bad response')
-    localStorage.setItem('gw-token', value)
-    $('#login-error').textContent = ''
+    const res = await fetch('api/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ password: value }),
+    })
+    const data = await res.json().catch(() => null)
+    if (!res.ok || !data?.token) throw new Error(data?.error?.message || `HTTP ${res.status}`)
+    token = data.token
+    localStorage.setItem('gw-token', token)
     enterApp()
   } catch (err) {
-    token = saved
-    $('#login-error').textContent = t('tokenBad')
+    $('#login-error').textContent = t('badPassword')
   }
 }
 $('#logout-btn').onclick = () => {

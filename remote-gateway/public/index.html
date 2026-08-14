@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#f5f6f8">
   <title>DSH 远程</title>
   <script>
     // 网关可能挂在子路径（如 /m/）下：统一补尾斜杠，保证相对路径正确解析
@@ -19,8 +19,8 @@
     <div class="login-card">
       <img src="icon.svg" alt="logo" class="login-logo">
       <h1 data-i18n="appName">DSH 远程控制</h1>
-      <p class="login-hint" data-i18n="tokenHint">请输入访问令牌（电脑端 remote-gateway/.env 中的 GATEWAY_TOKEN）</p>
-      <input id="token-input" type="password" placeholder="••••••••" autocomplete="off">
+      <p class="login-hint" data-i18n="passwordHint">请输入访问密码（电脑端 remote-gateway/.env 中的 GATEWAY_PASSWORD）</p>
+      <input id="token-input" type="password" placeholder="••••••••" autocomplete="current-password">
       <button id="token-submit" class="btn primary" data-i18n="connect">连接</button>
       <p id="login-error" class="login-error"></p>
     </div>

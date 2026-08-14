@@ -5,7 +5,7 @@ import { readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize, relative, resolve, isAbsolute, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DshClient } from './lib/dsh.js'
-import { loadEnv, makeAuth, makeRateLimit } from './lib/auth.js'
+import { loadEnv, makePasswordAuth, makeRateLimit } from './lib/auth.js'
 import { audit } from './lib/audit.js'
 
 // ── 配置 ────────────────────────────────────────────────────────────────
@@ -14,8 +14,11 @@ const env = loadEnv(join(ROOT, '.env'))
 const PORT = Number(env.GATEWAY_PORT ?? 3100)
 const DSH_URL = env.DSH_URL ?? 'http://127.0.0.1:3080'
 const PUBLIC_DIR = join(ROOT, 'public')
-const auth = makeAuth(env.GATEWAY_TOKEN ?? '')
+// 认证：用户在 .env 设置自己的 GATEWAY_PASSWORD；手机输入密码换取会话令牌。
+// 兼容旧配置：未设置密码时退回 GATEWAY_TOKEN（原实现）。
+const auth = makePasswordAuth(env.GATEWAY_PASSWORD ?? env.GATEWAY_TOKEN ?? '')
 const rateLimit = makeRateLimit(240, 60_000)
+const loginRateLimit = makeRateLimit(10, 60_000) // 登录接口单独限流（防爆破）
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -233,12 +236,27 @@ const server = createServer(async (req, res) => {
   const ip = req.socket.remoteAddress ?? '?'
 
   try {
+    if (pathname === '/api/login' && req.method === 'POST') {
+      // 登录：输入密码 → 换取会话令牌（独立限流，防爆破）
+      if (!loginRateLimit(ip)) {
+        audit(`429 POST /api/login ip=${ip}`)
+        return sendError(res, 429, 'rate-limited', '登录尝试过于频繁，请稍后再试')
+      }
+      const body = await readBody(req)
+      if (typeof body.password !== 'string' || !auth.check(body.password)) {
+        audit(`401 POST /api/login ip=${ip}`)
+        return sendError(res, 401, 'bad-password', '密码错误')
+      }
+      audit(`200 POST /api/login ip=${ip}`)
+      return sendJson(res, 200, { ok: true, token: auth.mint() })
+    }
     if (pathname.startsWith('/api/')) {
-      // 认证（SSE 用 ?token=，其余用 Authorization 头）
-      const token = auth.extract(req, url)
-      if (!auth.check(token)) {
+      // 认证：SSE 用 ?token=，其余用 Authorization 头；校验会话令牌
+      const h = req.headers.authorization
+      const token = (h && h.startsWith('Bearer ') ? h.slice(7) : null) ?? url.searchParams.get('token')
+      if (!auth.verify(token)) {
         audit(`401 ${req.method} ${pathname} ip=${ip}`)
-        return sendError(res, 401, 'unauthorized', '需要有效的访问令牌')
+        return sendError(res, 401, 'unauthorized', '需要有效的访问令牌（请先登录）')
       }
       if (!rateLimit(ip)) {
         audit(`429 ${req.method} ${pathname} ip=${ip}`)

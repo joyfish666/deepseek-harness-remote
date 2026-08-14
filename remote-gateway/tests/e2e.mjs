@@ -1,6 +1,6 @@
 // M2 端到端验收脚本：真实调用 remote-gateway（含 SSE 事件流）。
 // 用法：node tests/e2e.mjs
-// 覆盖：认证、健康、SSE 流、建会话、发消息（实时事件）、取消、历史、工作区文件浏览、归档清理。
+// 覆盖：认证（密码登录）、健康、SSE 流、建会话、发消息（实时事件）、取消、历史、工作区文件浏览。
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadEnv } from '../lib/auth.js'
@@ -8,7 +8,8 @@ import { loadEnv } from '../lib/auth.js'
 const ROOT = dirname(fileURLToPath(import.meta.url))
 const env = loadEnv(join(ROOT, '..', '.env'))
 const BASE = `http://127.0.0.1:${env.GATEWAY_PORT ?? 3100}`
-const TOKEN = env.GATEWAY_TOKEN
+const PASSWORD = env.GATEWAY_PASSWORD ?? env.GATEWAY_TOKEN ?? ''
+let TOKEN = '' // 登录后签发
 const results = []
 const check = (name, cond, extra = '') => {
   results.push({ name, pass: !!cond })
@@ -59,12 +60,24 @@ async function openSSE() {
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
-// ── 1. 认证与健康 ──────────────────────────────────────────────────────
+// ── 1. 认证（密码登录）与健康 ──────────────────────────────────────────
 {
   const noAuth = await fetch(`${BASE}/api/health`)
-  check('无 Token 被拒 (401)', noAuth.status === 401, `status=${noAuth.status}`)
+  check('无令牌被拒 (401)', noAuth.status === 401, `status=${noAuth.status}`)
+  const bad = await fetch(`${BASE}/api/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ password: 'definitely-wrong' }),
+  })
+  check('错误密码被拒 (401)', bad.status === 401, `status=${bad.status}`)
+  const login = await fetch(`${BASE}/api/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ password: PASSWORD }),
+  })
+  const loginData = await login.json().catch(() => null)
+  TOKEN = loginData?.token ?? ''
+  check('密码登录成功并签发令牌', login.status === 200 && !!TOKEN)
   const health = await api('/api/health')
-  check('健康检查', health.status === 200 && health.data?.ok === true && health.data?.dsh?.connected === true,
+  check('健康检查（会话令牌有效）', health.status === 200 && health.data?.ok === true && health.data?.dsh?.connected === true,
     `dsh connected=${health.data?.dsh?.connected}`)
 }
 
@@ -132,9 +145,14 @@ let sessionId = null
 
   // ── 5. 历史 ──────────────────────────────────────────────────────────
   const hist = await api(`/api/sessions/${encodeURIComponent(sessionId)}/history?maxMessages=50`)
-  const types = (hist.data?.events || []).map((e) => e.event?.type ?? e.type)
+  const events = (hist.data?.events || []).map((e) => e.event ?? e)
+  const types = events.map((e) => e.type)
   check('历史包含 user/message', types.includes('user/message'))
   check('历史包含 assistant/message', types.includes('assistant/message'))
+  const userEv = events.find((e) => e.type === 'user/message')
+  const asstEv = events.find((e) => e.type === 'assistant/message')
+  check('user/message 载荷在 data.content（渲染字段）', Array.isArray(userEv?.data?.content))
+  check('assistant/message 载荷在 data.message.content（渲染字段）', Array.isArray(asstEv?.data?.message?.content))
   console.log(`      历史事件类型：${[...new Set(types)].join(', ')}（工具调用与否取决于模型是否用工具）`)
 
   // ── 6. 写操作（重命名） ──────────────────────────────────────────────

@@ -111,7 +111,7 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 
    > 网关零依赖（Node ≥ 22 内置能力），只监听 `127.0.0.1`。已配置开机自启任务 `dsh-gateway`（见下节）。
 
-2. **获取访问令牌**：打开 `remote-gateway/.env`，`GATEWAY_TOKEN=` 后的字符串就是令牌（未生成时用 `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"` 生成并写入）。
+2. **设置访问密码**：打开 `remote-gateway/.env`，把 `GATEWAY_PASSWORD=` 改成**你自己设置的密码**（建议 8 位以上），保存后**重启网关**生效（改密码后手机端需重新登录）。
 
 3. **手机访问**（Tailscale 保持连接）：浏览器打开
 
@@ -119,7 +119,7 @@ https://<你的机器名>.<你的tailnet>.ts.net/
    https://<你的机器名>.<你的tailnet>.ts.net/m/
    ```
 
-   首次输入令牌并连接。Chrome 菜单 → **添加到主屏幕** 后即可像 App 一样全屏使用。
+   输入你设置的密码即可登录。Chrome 菜单 → **添加到主屏幕** 后即可像 App 一样全屏使用。
 
 4. **验证**：手机上能看到与电脑端相同的会话列表；新建会话 → 发一条消息 → 实时看到流式回复。
 
@@ -127,6 +127,7 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 
 | 端点 | 说明 |
 |---|---|
+| `POST /api/login` | 登录：`{password}` → `{token}`（密码错误 401，限流防爆破） |
 | `GET /api/health` | 网关与 dsh 连接状态 |
 | `GET /api/sessions` / `POST /api/sessions` | 会话列表 / 新建（`{workspaceId?, cwd?}`） |
 | `GET /api/sessions/:id/history` | 会话历史 |
@@ -140,7 +141,7 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 | `POST /api/approvals/:rpcId` | 审批应答 `{sessionId, approvalId, outcome}` |
 | `GET /api/stream?token=` | SSE 实时事件流（mux/host 帧） |
 
-认证：`Authorization: Bearer <token>`；无令牌一律 401；访问审计写入 `~/.dsh/logs/gateway-audit.log`。
+认证：先 `POST /api/login` 换取会话令牌（HMAC 签发，30 天有效，重启网关不失效），此后请求带 `Authorization: Bearer <token>`（SSE 用 `?token=`）；无令牌一律 401；访问审计写入 `~/.dsh/logs/gateway-audit.log`。修改 `GATEWAY_PASSWORD` 后旧令牌立即失效。
 
 ### 已知说明
 
