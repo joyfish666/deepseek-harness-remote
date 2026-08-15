@@ -92,31 +92,102 @@ const targetHost = TARGET.port
   ? `${TARGET.hostname}:${TARGET.port}`
   : TARGET.hostname
 
-const LOGIN_PAGE = `<!doctype html>
+// Login page styled after the dsh design platform (ui-theme tokens:
+// neutral-bluish scale, DeepSeek brand blue, 12px cards, 8px controls).
+// Light and dark follow the system; wrong tokens re-render with an error.
+function loginPage(error) {
+  const errorBlock = error
+    ? '<div class="error">\u26a0 \u4ee4\u724c\u4e0d\u6b63\u786e\u3002Invalid token.</div>'
+    : ''
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>dsh remote-config proxy</title>
+<title>DSH Remote</title>
 <style>
-  body { font-family: system-ui, sans-serif; background: #1f2937; color: #e5e7eb;
-         display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-  form { background: #111827; padding: 24px; border-radius: 12px; width: min(320px, 86vw); }
-  input { box-sizing: border-box; width: 100%; padding: 10px; margin: 8px 0 12px;
-          border-radius: 8px; border: 1px solid #374151; background: #1f2937; color: #e5e7eb; }
-  button { width: 100%; padding: 10px; border: none; border-radius: 8px;
-           background: #3b82f6; color: white; font-size: 15px; }
-  h1 { font-size: 16px; margin: 0 0 4px; }
-  p { font-size: 12px; color: #9ca3af; margin: 0 0 12px; }
+  :root {
+    --bg: #151517; --card: #232324; --input: #2c2c2e;
+    --border: rgba(255,255,255,0.12); --border-strong: rgba(255,255,255,0.2);
+    --label: #f9fafb; --label-2: #cfd3d6; --label-3: #adaeb2;
+    --brand: rgb(65,118,230); --brand-hover: rgb(103,158,254);
+    --error: rgb(248,113,113);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f9fafb; --card: #ffffff; --input: #f3f4f6;
+      --border: rgba(0,0,0,0.1); --border-strong: rgba(0,0,0,0.16);
+      --label: #0f1115; --label-2: #61666b; --label-3: #81858c;
+      --error: rgb(220,38,38);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); color: var(--label);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .card {
+    width: min(360px, 88vw); background: var(--card);
+    border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    padding: 24px 24px 20px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .mark {
+    width: 32px; height: 32px; border-radius: 8px; flex: none;
+    background: linear-gradient(135deg, rgb(65,118,230), rgb(103,158,254));
+    display: flex; align-items: center; justify-content: center; color: #fff;
+  }
+  h1 { font-size: 15px; font-weight: 600; margin: 0; }
+  p.hint { font-size: 12px; line-height: 1.7; color: var(--label-3); margin: 8px 0 16px; }
+  label { display: block; font-size: 12px; color: var(--label-2); margin-bottom: 6px; }
+  input {
+    width: 100%; height: 40px; padding: 0 12px;
+    background: var(--input); color: var(--label);
+    border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(65,118,230,0.25); }
+  input::placeholder { color: var(--label-3); }
+  button {
+    width: 100%; height: 40px; margin-top: 14px;
+    background: var(--brand); color: #fff; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 500; cursor: pointer; transition: background .15s;
+  }
+  button:hover { background: var(--brand-hover); }
+  .error {
+    margin-top: 12px; padding: 8px 10px;
+    background: rgba(248,113,113,0.12); color: var(--error);
+    border: 1px solid rgba(248,113,113,0.3); border-radius: 8px;
+    font-size: 12px;
+  }
+  .foot { margin-top: 14px; font-size: 11px; color: var(--label-3); text-align: center; }
 </style>
-<form method="post" action="/login">
-  <h1>dsh remote-config proxy</h1>
-  <p>Enter the proxy token to unlock remote configuration.</p>
-  <input type="password" name="token" placeholder="token" autofocus required>
-  <button type="submit">Unlock</button>
-</form>`
+</head>
+<body>
+  <form class="card" method="post" action="/login">
+    <div class="brand">
+      <div class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <h1>DSH Remote</h1>
+    </div>
+    <p class="hint">\u8f93\u5165\u4ee3\u7406\u4ee4\u724c\u4ee5\u89e3\u9501\u8fdc\u7a0b\u914d\u7f6e\u3002<br>Enter the proxy token to unlock remote configuration.</p>
+    <label for="token">Token</label>
+    <input id="token" type="password" name="token" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" autofocus autocomplete="current-password" required>
+    <button type="submit">\u89e3\u9501 / Unlock</button>
+    ${errorBlock}
+    <div class="foot">dsh remote-config proxy</div>
+  </form>
+</body>
+</html>`
+}
 
-function serveLoginPage(res) {
-  res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-  res.end(LOGIN_PAGE)
+function serveLoginPage(res, error) {
+  res.writeHead(error ? 401 : 200, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+  })
+  res.end(loginPage(error))
 }
 
 // ── Plain HTTP proxy ─────────────────────────────────────────────────────
@@ -174,7 +245,7 @@ function handleLogin(req, res) {
     const given = match === null ? '' : decodeURIComponent(match[1].replace(/\+/g, ' '))
     if (!safeEqual(given, TOKEN)) {
       log('login rejected')
-      return text(res, 401, 'invalid token')
+      return serveLoginPage(res, true)
     }
     log('login accepted')
     res.writeHead(302, {
