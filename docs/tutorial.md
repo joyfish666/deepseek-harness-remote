@@ -193,7 +193,7 @@ Remove-Item "$HOME\.dsh\profiles\web\node_modules\mobile-fit"
 | Sidebar | ☰ opens the drawer → session list directly (no icon rail); close via × or scrim |
 | Session rows | 44px rows; ⋯ menu works (rename/fork/archive) |
 | Title / stats | Session title and the stats line scroll horizontally to reveal full content |
-| Input | Enter inserts a newline (does not send); the arrow button sends; composer sits at the bottom |
+| Input | Enter inserts a newline (does not send); the arrow button sends; composer sits at the bottom; switching sessions never pops the keyboard (tap the box to focus) |
 | Settings | Full-screen panel, horizontal tab strip on top, scrollable content |
 | Internal-testing notice | Stops appearing after clicking "Continue" once |
 | Security banner | Remote access shows an explanatory banner at the top of the settings panel (language follows the UI) |

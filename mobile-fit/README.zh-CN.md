@@ -16,7 +16,7 @@
 - **会话操作**：行高 44px 触控标准，⋯ 菜单常驻可见（重命名/分叉/归档），
   弹窗全屏正常显示；
 - **输入体验**：Enter 换行（箭头发送）、16px 防 iOS 聚焦缩放、键盘提示"换行"、
-  输入区贴底 + 安全区适配；
+  输入区贴底 + 安全区适配；**切换会话不自动聚焦输入框**（不弹键盘，点输入框才聚焦）;
 - **设置面板**：全屏化、导航变顶部横向标签、内容可滚动；远程访问时顶部显示
   **上游安全设计说明横幅**（配置/凭据接口仅限本机回环，中英双语跟随界面语言）；
 - **持久化**：内测声明首次确认后不再弹出（localStorage，上游在远程浏览器下
@@ -32,7 +32,7 @@
    ▼
 window.__ModuleLoader__  ── 加载 /plugins/mobile-fit/client.js（本包注入）
    │  ① <style> 注入：@media (max-width:820px) 移动端规则
-   │  ② 交互：汉堡按钮 + 侧栏抽屉 + 遮罩 + 启动调整（预展开/声明持久化/Enter 换行/提示横幅）
+   │  ② 交互：汉堡按钮 + 侧栏抽屉 + 遮罩 + 启动调整（预展开/声明持久化/Enter 换行/提示横幅）+ 输入框脚本聚焦拦截
    ▼
 官方 UI（React 树原样）
 ```
@@ -84,7 +84,7 @@ window.__ModuleLoader__  ── 加载 /plugins/mobile-fit/client.js（本包注
 - 抽屉交互：汉堡按钮/遮罩/`openDrawer`/`closeDrawer`；
 - 启动调整：预展开侧栏（幂等）、内测声明持久化与静默关闭、Enter 换行、
   安全提示横幅（中英双语）；
-- 观察器与监听：body 级/子树级 MutationObserver、点击捕获监听。
+- 观察器与监听：body 级/子树级 MutationObserver、点击捕获监听、输入框脚本聚焦拦截（pointerdown + focusin）。
 
 改完**刷新页面即生效**（`style` 标签带 `data-plugin-css="mobile-fit/css"`，bundle rev
 由 client-modules 每次请求重新哈希）；新增插件行才需要重启 dsh。

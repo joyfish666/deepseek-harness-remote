@@ -330,6 +330,37 @@ window.__ModuleLoader__.load({
         }
       }
 
+      // Session switch (and first mount) returns focus to the composer by
+      // script: upstream's unlock effect runs el.focus() whenever the active
+      // session changes (InputBar's [locked, sessionId] effect). On phones
+      // that raises the keyboard while the user only picked a conversation —
+      // typing intent is a tap on the box itself. A real tap is a TRUSTED
+      // focus event and passes through; a scripted one (isTrusted false) is
+      // refused — except right after a touch inside the composer dock, where
+      // upstream's keep-focus refocus (send button mousedown) is gesture
+      // driven and must survive. Chrome cancels focusin outright via
+      // preventDefault (no keyboard flash); engines where focusin is not
+      // cancelable get the blur() fallback.
+      var lastDockPointerAt = 0
+      function noteComposerPointer(event) {
+        if (!mq.matches) return
+        var target = event.target
+        if (!(target instanceof Element)) return
+        if (target.closest('[data-slot="conversation.composer.dock"]') !== null) {
+          lastDockPointerAt = Date.now()
+        }
+      }
+      function suppressScriptedComposerFocus(event) {
+        if (!mq.matches) return
+        var target = event.target
+        if (!(target instanceof HTMLTextAreaElement)) return
+        if (!target.matches('textarea[class$="_input"]')) return
+        if (event.isTrusted) return
+        if (Date.now() - lastDockPointerAt < 600) return
+        event.preventDefault()
+        target.blur()
+      }
+
       // ── Loopback-only security notice ──────────────────────────────────
       // dsh gates its whole settings/credentials plane to loopback; remote
       // access hits HTTP 403 by design, and most surfaces swallow the
@@ -425,6 +456,8 @@ window.__ModuleLoader__.load({
       mq.addEventListener("change", ensureElements);
       document.addEventListener("click", recordWelcomeAck, true);
       document.addEventListener("keydown", composerEnterToNewline, true);
+      document.addEventListener("pointerdown", noteComposerPointer, true);
+      document.addEventListener("focusin", suppressScriptedComposerFocus, true);
       // The settings panel mounts deep inside the React tree; watch the
       // subtree and keep the remote-access banner in sync while it is open.
       var hintTimer = null;

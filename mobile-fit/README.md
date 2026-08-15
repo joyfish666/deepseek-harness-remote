@@ -10,7 +10,7 @@
 
 - **Sidebar drawer**: ☰ opens → the expanded sidebar content directly (no icon rail), closed via ×; the sidebar is pre-expanded at load so opening the drawer never flickers through a rail→expand transition;
 - **Session actions**: 44px touch-height rows, always-visible ⋯ menu (rename/fork/archive), full-screen dialogs;
-- **Input experience**: Enter inserts a newline (the arrow sends), 16px input prevents iOS zoom-on-focus, keyboard hints "newline", composer pinned to the bottom with safe-area padding;
+- **Input experience**: Enter inserts a newline (the arrow sends), 16px input prevents iOS zoom-on-focus, keyboard hints "newline", composer pinned to the bottom with safe-area padding; **switching sessions never auto-focuses the composer** (no keyboard pop-up — focus happens when you tap the box);
 - **Settings panel**: full-screen, nav becomes a horizontal tab strip, content scrolls; a bilingual **upstream-security banner** appears at the top under remote access (config/credential APIs are loopback-only);
 - **Persistence**: the internal-testing notice stops appearing after one acknowledgement (localStorage; upstream keeps it in memory only for remote browsers);
 - **Swipeable**: the stats line and the session title scroll horizontally to reveal full content;
@@ -24,7 +24,7 @@ Phone browser
    ▼
 window.__ModuleLoader__  ── loads /plugins/mobile-fit/client.js (injected by this package)
    │  ① <style> injection: @media (max-width:820px) mobile rules
-   │  ② interaction: burger button + sidebar drawer + scrim + startup tweaks (pre-expand/notice persistence/Enter newline/banner)
+   │  ② interaction: burger button + sidebar drawer + scrim + startup tweaks (pre-expand/notice persistence/Enter newline/banner) + scripted-composer-focus suppression
    ▼
 Official UI (React tree untouched)
 ```
@@ -71,7 +71,7 @@ Edit `lib/client.js` — four blocks:
 - The `css` string: mobile rules (inside the media query; use substring matching for multi-class elements — see `docs/pitfalls.md` P14);
 - Drawer interaction: burger/scrim/`openDrawer`/`closeDrawer`;
 - Startup tweaks: sidebar pre-expand (idempotent), notice persistence & silent dismissal, Enter-newline, security banner (bilingual);
-- Observers & listeners: body-level/subtree MutationObservers, capture-phase click listener.
+- Observers & listeners: body-level/subtree MutationObservers, capture-phase click listener, composer-focus suppression (pointerdown + focusin).
 
 **Refresh the page after editing** (the `<style>` tag carries `data-plugin-css="mobile-fit/css"` and the bundle rev is re-hashed per request by client-modules); only new plugin rows require a dsh restart.
 
