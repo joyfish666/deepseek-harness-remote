@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Same dark theme as values/themes.xml (dark is the default look). -->
     <style name="Theme.DshRemote" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@android:color/black</item>
-        <!-- Same edge-to-edge opt-out as values/themes.xml. -->
+        <item name="android:windowBackground">#151517</item>
+        <item name="android:colorAccent">#679EFE</item>
+        <item name="android:textColorPrimary">#F9FAFB</item>
         <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 </resources>

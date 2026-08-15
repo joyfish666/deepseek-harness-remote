@@ -229,7 +229,9 @@ const DIAG_SCRIPT = `<script>
       observer.disconnect()
     }
   })
-  if (document.body) observer.observe(document.body, { childList: true, subtree: true })
+  function attachObserver() { if (document.body) observer.observe(document.body, { childList: true, subtree: true }) }
+  attachObserver()
+  document.addEventListener('DOMContentLoaded', attachObserver)
   function collect() {
     var resources = []
     try {
