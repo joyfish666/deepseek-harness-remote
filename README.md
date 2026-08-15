@@ -9,20 +9,26 @@
 | 名称 | **Tailscale 隧道 + 官方 Web UI** | **M1 手机 UI 适配层** | **自建远程网关 + 手机 App（PWA）** |
 | 形态 | **原生网站**：dsh 官方 Web UI 原样（零自建代码），只是经隧道送到手机 | 给 M1 官方界面注入移动端适配（`mobile-fit/` 插件） | 自建网关 + 移动端 App 界面（`remote-gateway/`） |
 | 入口 | `https://<机器名>.<tailnet>.ts.net/` | 复用 M1 入口 `/` | `https://<机器名>.<tailnet>.ts.net/m/` |
-| 状态 | ✅ **完全可用（唯一完成）** | 🚧 开发中（未完成） | 🚧 开发中（未完成） |
+| 状态 | ✅ **完全可用（唯一完成）** | ✅ **基本可用（移动端日常使用）** | 🚧 开发中（未完成） |
 | 定位 | **日常使用的正式入口** | 让 M1 在手机上更好用 | 试验性移动端界面 |
 | 手机上的界面 | 与电脑完全一致（官方原样） | 官方界面 + 移动端适配 | 自建移动端 UI（PWA） |
 
 > ⚠️ **重要说明**：
 >
-> 1. **目前只有 M1 完成了**。M2、M3 **都未完成**——注意：2026-08-15 解决的是"开机自启
->    弹窗口"的部署问题（vbs 隐藏方式，见各教程第 3 节），**不代表 M2/M3 功能完成**；
->    两者仍在开发中，可能存在未知问题，**日常使用请认准 M1（原生网站）**。
+> 1. **M1、M2 均可用**：M1 是原生网站（完全可用）；M2（手机 UI 适配层）经多轮打磨后
+>    已覆盖手机日常使用（抽屉导航、会话操作、输入、设置面板等，见
+>    [docs/tutorial-m2.md](docs/tutorial-m2.md) 行为清单）。**M3 未完成**——2026-08-15
+>    解决的是"开机自启弹窗口"的部署问题（vbs 隐藏方式，见各教程第 3 节），网关与 App
+>    本身仍在开发中，可能存在未知问题。
 > 2. **M2/M3 不是比 M1 更好的替代品**。三者是完全独立的方案，互不替代；M1 是原生网站，M2 只是给 M1 做手机适配（介于 M1 与自建网关之间），M3 是自建 App 界面。
 > 3. **冲突提示**：
 >    - M1 与 M2 无冲突（M2 是 M1 的叠加层）；M3 与 M1/M2 入口不同（`/m/` vs `/`），可并存。
 >    - **M3 的已知冲突**：启用 M3 文件浏览需要把 dsh 目录选择器从 native 换成 browse seam，会改变 **M1 电脑端**"选择工作区"的交互（改为浏览器内浏览）。若不需要 M3 文件浏览可不做该改动。
 >    - 三者共用 `~/.dsh/profiles/web/cordis.patch.yml`，停用某一方式时注意只删自己的配置段（见各教程）。
+> 4. **远程访问的已知限制**（M1/M2 通用，dsh 上游安全设计）：配置/凭据类接口
+>    （模型页、插件配置、权限、Agent 预设等）仅限本机回环（localhost/127.0.0.1）访问，
+>    经远程域名访问会返回 HTTP 403。手机端无法使用这些页面；M2 会在设置面板顶部
+>    显示说明横幅。电脑上用 `http://127.0.0.1:<端口>` 访问即可正常使用。
 
 ## 使用教程
 
@@ -41,7 +47,7 @@
 | 路径 | 说明 |
 |---|---|
 | `remote-gateway/` | **M3 网关**：零依赖 Node 服务（REST + SSE）+ 移动端 PWA（`public/`）+ 端到端验收脚本（`tests/e2e.mjs`） |
-| `mobile-fit/` | **M2 适配层**：注入式 client 插件，让 M1 官方界面在手机上更好用（零上游改动，纯叠加） |
+| `mobile-fit/` | **M2 适配层**：注入式 client 插件，让 M1 官方界面在手机上更好用（零上游改动，纯叠加；行为清单见 `docs/tutorial-m2.md` 第 5 节） |
 | `scripts/` | 开机自启：`start-dsh.vbs` / `start-gateway.vbs`（wscript 隐藏启动器，任务注册用）+ `start-dsh.ps1` / `start-gateway.ps1`（看门狗本体） |
 | `docs/tutorial-m1.md` / `tutorial-m2.md` / `tutorial-m3.md` | 三种方式各自的使用教程（启用 / 自启 / 停用） |
 | `docs/remote-control-plan.md` | 远程控制整体方案：架构调研、方案对比、路线图与实施记录 |
@@ -68,12 +74,14 @@
 | 网关页面 401 / 连不上（M3） | 检查 `remote-gateway/.env` 的 `GATEWAY_PASSWORD` 与手机输入是否一致；`Get-ScheduledTask -TaskName dsh-gateway` 查看任务状态；`schtasks /run /tn dsh-gateway` 立即启动 |
 | 网关日志（M3） | `Get-Content $HOME\.dsh\logs\gateway.log -Tail 50`；审计：`gateway-audit.log` |
 | 页面显示 "Failed to load plugins"（M2） | mobile-fit 插件未生效：确认 junction 存在（`Get-Item "$HOME\.dsh\profiles\web\node_modules\mobile-fit"`）、patch 行正确，然后**重启 dsh**（`schtasks /end /tn dsh-web`） |
+| 设置页"模型/插件配置"报 403 或空白（M1/M2 远程访问） | **dsh 上游安全设计**：配置/凭据接口仅限本机回环访问，远程域名访问一律 403，非配置问题。手机端无法使用；请在运行 dsh 的电脑浏览器打开 `http://127.0.0.1:<端口>` |
+| 内测声明每次刷新都弹出（远程访问） | 上游在远程浏览器下仅内存保存"已确认"状态；M2 已用 localStorage 持久化，**点一次"继续"后不再弹出**。若更新了上游声明版本号，会再提示一次属正常 |
 | 开机出现 cmd.exe / 空白 powershell 窗口（旧版自启） | ⚠️ **2026-08-15 已根治**：自启任务已改为 `wscript.exe + .vbs`（SW_HIDE）启动，登录时零窗口。若仍看到 `cmd.exe /d /s /c dsh web` 或空白的 `powershell.exe` 窗口，说明任务还是旧方式——按教程第 3 节重新注册（`wscript.exe` + `start-dsh.vbs` / `start-gateway.vbs`）并重启电脑。另有一个 `cmd.exe /C AMDRSServ.exe` 窗口是 AMD 显卡驱动，与项目无关，可关闭 |
 
 ## 路线图
 
 - [x] M1：Tailscale 隧道 + 官方 Web UI 远程访问——**完全可用，日常使用入口**
-- [ ] M2：M1 手机 UI 适配层（`mobile-fit/`）——**开发中**（首个版本已可用；介于 M1 与自建网关之间；后续可继续打磨触控优化、PWA 离线壳）
+- [x] M2：M1 手机 UI 适配层（`mobile-fit/`）——**基本可用，手机日常使用**（抽屉导航、会话操作、输入体验、设置面板全屏化、内测声明持久化、上游安全提示横幅等，持续打磨中）
 - [ ] M3：自建远程网关 + 手机 App（PWA）——**开发中**（独立方案，非 M1 的替代/升级）
 
 ## 许可证

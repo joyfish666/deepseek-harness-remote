@@ -11,6 +11,8 @@ const sandbox = {
   window: {},
   document: {
     querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener() {},
     createElement: () => ({
       dataset: {},
       style: {},

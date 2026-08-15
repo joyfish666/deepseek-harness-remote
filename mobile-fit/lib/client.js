@@ -1,7 +1,8 @@
-// mobile-fit browser bundle (M3): mobile UI adaptation for the dsh Web GUI.
+// mobile-fit browser bundle (M2): mobile UI adaptation for the dsh Web GUI.
 // Loaded through the official client-plugin seam (dsh.client / exports["./client"]),
 // exactly like @deepseek-ai/dsh-client-ui-* bundles. It injects a <style> with
-// viewport-aware rules and a small drawer interaction; the host dsh process and
+// viewport-aware rules and a small drawer interaction (the drawer shows the
+// expanded sidebar content directly — no icon rail); the host dsh process and
 // the official frontend are untouched.
 //
 // Selector strategy: official class names are build-hashed (e.g. pI_x6G_sidebarCol),
@@ -35,6 +36,93 @@ window.__ModuleLoader__.load({
       "    box-shadow: 0 0 32px rgba(0,0,0,0.35);",
       "  }",
       "  body[data-mobile-fit-open] [class$=\"_sidebarCol\"] { transform: translateX(0); }",
+      // Drawer open: the shell's panel toggle is replaced by the hosted close
+      // control, and the expanded sidebar content fills the drawer — the
+      // icon rail never appears on phones.
+      "  body[data-mobile-fit-open] [class$=\"_sidebarCol\"] [class$=\"_toggle\"] { display: none !important; }",
+      // The shell's inline width belongs to the desktop track; stretch the
+      // column across the drawer and clear the top safe area. The marker
+      // attribute is set by the interaction below on the exact column node.
+      "  body[data-mobile-fit-open] [class$=\"_sidebarCol\"] [data-mobile-fit=\"expanded\"] {",
+      "    width: 100% !important;",
+      "    padding-top: max(6px, env(safe-area-inset-top, 0px)) !important;",
+      "  }",
+      // Safety net: while the drawer is open the rail controls may never
+      // render, even in the brief collapsed frame before the expand lands.
+      "  body[data-mobile-fit-open] [class$=\"_frame\"][data-sidebar-collapsed] [class$=\"_sidebarCol\"] [class$=\"_newSession\"],",
+      "  body[data-mobile-fit-open] [class$=\"_frame\"][data-sidebar-collapsed] [class$=\"_sidebarCol\"] [class$=\"_regionArea\"],",
+      "  body[data-mobile-fit-open] [class$=\"_frame\"][data-sidebar-collapsed] [class$=\"_sidebarCol\"] [class$=\"_footArea\"] { display: none !important; }",
+      // Hosted close control: flows at the right end of the brand row inside
+      // the drawer instead of floating over the content.
+      "  #mobile-fit-burger.drawer-hosted {",
+      "    position: static !important;",
+      "    top: auto !important; left: auto !important;",
+      "    z-index: auto !important;",
+      "    background: transparent !important;",
+      "    box-shadow: none !important;",
+      "    color: var(--dsw-alias-label-secondary, #666) !important;",
+      "    font-size: 18px !important;",
+      "  }",
+      // The floating menu control would cover the session title; shift the
+      // conversation header right on phones.
+      "  [data-slot=\"conversation.session.header\"] [class$=\"_header\"] { padding-left: 56px !important; }",
+      // Row actions are hover-only on desktop; phones have no hover, so pin
+      // them visible and give the rows touch height. Substring matching:
+      // rows carry varying trailing classes (selected/menuOpen/drop states),
+      // so a suffix match would drop the rules the moment one is added —
+      // the row would snap back to 32px and its menu button would vanish.
+      "  [class*=\"_sessionRow\"], [class*=\"_projectRow\"] { height: 44px !important; }",
+      "  [class*=\"_sessionRow\"] [class*=\"_rowActions\"],",
+      "  [class*=\"_projectRow\"] [class*=\"_rowActions\"] { display: inline-flex !important; }",
+      // Keep the relative time visible on phones (desktop hides it on row
+      // hover and while the row menu is open — a tap triggers both).
+      "  [class*=\"_sessionRow\"] [class*=\"_time\"] { display: inline !important; }",
+      // Dialogs render as fixed layers under the drawer's transform; drop
+      // the transform while one is open so they cover the viewport instead
+      // of the drawer box (this also fixes rename/fork/workspace dialogs).
+      // The transition goes off too: a transform transition would delay the
+      // containing-block switch and flash the dialog inside the drawer box.
+      "  body[data-mobile-fit-open] [class$=\"_sidebarCol\"]:has([class$=\"_mask\"]) {",
+      "    transform: none !important;",
+      "    transition: none !important;",
+      "  }",
+      // Settings shell on phones: full-viewport panel, the nav rail becomes
+      // a horizontal strip, and the options get the width.
+      "  [class$=\"_overlay\"] { align-items: stretch !important; }",
+      "  [class$=\"_overlay\"] > [class$=\"_panel\"] {",
+      "    box-sizing: border-box !important;",
+      "    width: 100vw !important;",
+      "    height: 100vh !important;",
+      "    height: 100dvh !important;",
+      "    max-width: none !important;",
+      "    border-radius: 0 !important;",
+      "    flex-direction: column !important;",
+      "    padding-top: env(safe-area-inset-top, 0px) !important;",
+      "  }",
+      "  [class$=\"_overlay\"] [class$=\"_nav\"] {",
+      "    flex: none !important;",
+      "    flex-direction: row !important;",
+      "    width: auto !important;",
+      "    gap: 4px !important;",
+      "    padding: 8px !important;",
+      "    border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(128,128,128,0.35));",
+      "  }",
+      "  [class$=\"_overlay\"] [class$=\"_navTitle\"] { flex: none !important; align-self: center !important; padding: 0 8px !important; }",
+      "  [class$=\"_overlay\"] [class$=\"_navList\"] { flex-direction: row !important; gap: 4px !important; overflow-x: auto !important; }",
+      "  [class$=\"_overlay\"] [class$=\"_navCell\"] { flex: none !important; height: 36px !important; padding: 6px 12px !important; }",
+      // Keep the settings options column as the constrained scroll container
+      // on phones: the shell's content column lacks min-height: 0, so a
+      // tall section would overflow the clipped panel and never scroll.
+      "  [class$=\"_overlay\"] > [class$=\"_panel\"] > [class$=\"_content\"] {",
+      "    flex: 1 1 0 !important;",
+      "    min-height: 0 !important;",
+      "  }",
+      "  [class$=\"_overlay\"] > [class$=\"_panel\"] > [class$=\"_content\"] > [class$=\"_options\"] {",
+      "    flex: 1 1 0 !important;",
+      "    min-height: 0 !important;",
+      "    overflow-y: auto !important;",
+      "    padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) !important;",
+      "  }",
       // Composer: stick to the bottom, respect iPhone home indicator.
       "  [class$=\"_dock\"] {",
       "    padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;",
@@ -45,8 +133,34 @@ window.__ModuleLoader__.load({
       "    min-height: 44px;",
       "  }",
       "  [class$=\"_iconButton\"], [class$=\"_toggle\"] { min-width: 44px; }",
-      // Conversation list rows breathe on small screens.
-      "  [class$=\"_root\"] { gap: 10px; }",
+      // Conversation column rows breathe on small screens. Scoped to the
+      // center column: the sidebar column's own root also ends in "_root"
+      // (and only matches when the pointer is inside, so the gap would
+      // appear/disappear on every tap and shift the drawer content).
+      "  [class$=\"_centerCol\"] [class$=\"_root\"] { gap: 10px; }",
+      // Long content scrolls horizontally on phones instead of truncating:
+      // the composer stats line and the session title breadcrumbs. The
+      // crumbs need their 220px-per-segment cap lifted too — otherwise each
+      // segment ellipsizes internally and the nav never overflows — and the
+      // segments must not flex-shrink (min-width: 0 would let them compress
+      // below their text, again leaving nothing to scroll).
+      "  [data-slot=\"conversation.composer.dock\"] div[class$=\"_root\"] {",
+      "    overflow-x: auto !important;",
+      "    overflow-y: hidden !important;",
+      "    text-overflow: clip !important;",
+      "    scrollbar-width: none !important;",
+      "  }",
+      "  [data-slot=\"conversation.composer.dock\"] div[class$=\"_root\"]::-webkit-scrollbar { display: none !important; }",
+      "  [data-slot=\"conversation.session.header\"] [class$=\"_crumbs\"] {",
+      "    overflow-x: auto !important;",
+      "    overflow-y: hidden !important;",
+      "    scrollbar-width: none !important;",
+      "    -webkit-overflow-scrolling: touch !important;",
+      "    overscroll-behavior-x: contain !important;",
+      "  }",
+      "  [data-slot=\"conversation.session.header\"] [class$=\"_crumbs\"]::-webkit-scrollbar { display: none !important; }",
+      "  [data-slot=\"conversation.session.header\"] [class*=\"_crumb\"] { max-width: none !important; }",
+      "  [data-slot=\"conversation.session.header\"] [class$=\"_crumbSeg\"] { flex: none !important; }",
       "}"
     ].join("\n");
 
@@ -70,11 +184,206 @@ window.__ModuleLoader__.load({
       function closeDrawer() {
         document.body.removeAttribute("data-mobile-fit-open");
         if (scrim) { scrim.remove(); scrim = null; }
-        if (burger) burger.textContent = "\u2630";
+        if (burger) {
+          // Back to the fixed top-left corner as the menu control.
+          burger.classList.remove("drawer-hosted");
+          document.body.appendChild(burger);
+          burger.setAttribute("aria-label", "menu");
+          burger.textContent = "\u2630";
+        }
+      }
+
+      function openDrawer() {
+        document.body.setAttribute("data-mobile-fit-open", "");
+        // Host the burger at the right end of the brand row as the drawer's
+        // close control, in place of the shell's panel toggle (hidden by CSS
+        // while the drawer is open).
+        var logoRow = document.querySelector('[class$="_sidebarCol"] [class$="_logoRow"]');
+        if (logoRow !== null) {
+          logoRow.appendChild(burger);
+          // Mark the exact column node so CSS can stretch the expanded
+          // content across the drawer (the shell's inline width is for the
+          // desktop track). React leaves this attribute untouched.
+          var sidebarRoot = logoRow.parentElement;
+          if (sidebarRoot !== null) sidebarRoot.setAttribute("data-mobile-fit", "expanded");
+        }
+        burger.classList.add("drawer-hosted");
+        burger.setAttribute("aria-label", "close");
+        burger.textContent = "\u00d7";
+        // The drawer shows the expanded sidebar content directly: if the
+        // shell auto-collapsed the sidebar to its icon rail, drive the
+        // rail's own expand toggle once.
+        var frame = document.querySelector('[class$="_frame"]');
+        if (frame !== null && frame.hasAttribute("data-sidebar-collapsed")) {
+          var toggle = frame.querySelector('[class$="_sidebarCol"] [class$="_toggle"]');
+          if (toggle !== null) toggle.click();
+        }
+        if (!scrim) {
+          scrim = document.createElement("div");
+          scrim.id = SCRIM_ID;
+          scrim.style.cssText = [
+            "position:fixed",
+            "inset:0",
+            "z-index:110",
+            "background:rgba(0,0,0,0.4)"
+          ].join(";");
+          scrim.addEventListener("click", closeDrawer);
+          document.body.appendChild(scrim);
+        }
+      }
+
+      // ── Startup adjustments (mobile only) ──────────────────────────────
+      // The shell auto-collapses the sidebar to its icon rail on narrow
+      // screens; expand it once at load so the drawer always opens onto the
+      // ready content, never a rail→expand transition. The frame's own
+      // data-sidebar-collapsed attribute is the guard, and sidebarExpandTried
+      // makes the click at-most-once: without the flag, the mutation observer
+      // (fired by the scrim append while the drawer opens) could click the
+      // same toggle a second time before React re-renders, expanding and
+      // immediately collapsing — leaving an empty rail behind.
+      var sidebarExpandTried = false
+      function expandSidebarForMobile(attempt) {
+        if (!mq.matches || sidebarExpandTried) return
+        var frame = document.querySelector('[class$="_frame"]')
+        if (frame === null) {
+          // The React tree has not mounted yet; retry until it does.
+          if (attempt < 40) setTimeout(function () { expandSidebarForMobile(attempt + 1) }, 150)
+          return
+        }
+        sidebarExpandTried = true
+        if (!frame.hasAttribute("data-sidebar-collapsed")) return
+        var toggle = frame.querySelector('[class$="_sidebarCol"] [class$="_toggle"]')
+        if (toggle === null) return
+        toggle.click()
+      }
+
+      // Remote browsers persist nothing for the welcome notice (settings is
+      // loopback-only, so upstream falls back to per-page memory and the
+      // notice reopens on every load). Keep the acknowledgement here
+      // instead. The key rides the upstream copy version: bump it when the
+      // notice changes materially so it shows once more.
+      var WELCOME_ACK_KEY = "mobile-fit:welcome-ack:2026-08-13.1"
+      var welcomeHandled = false
+
+      function welcomeLabel(button) {
+        return (button.textContent || "").trim()
+      }
+
+      // Record the user's own acknowledgement (capture phase: fires before
+      // the button's own handler, whatever the dialog's state).
+      function recordWelcomeAck(event) {
+        if (!(event.target instanceof Element)) return
+        var button = event.target.closest("button")
+        if (button === null) return
+        var label = welcomeLabel(button)
+        if (label === "\u7ee7\u7eed" || label === "Continue") {
+          try { localStorage.setItem(WELCOME_ACK_KEY, "1") } catch (error) { /* storage unavailable */ }
+        }
+      }
+
+      // Once acknowledged on an earlier visit, close the welcome dialog
+      // without painting it: hide the card and drive its own continue
+      // button (the onboarding step must complete so the app root un-inerts).
+      function dismissWelcomeIfAcknowledged(attempt) {
+        if (!mq.matches || welcomeHandled) return
+        var acknowledged = false
+        try { acknowledged = localStorage.getItem(WELCOME_ACK_KEY) !== null } catch (error) { /* storage unavailable */ }
+        if (!acknowledged) return
+        var dialogs = document.querySelectorAll('[class$="_dialog"]')
+        for (var i = 0; i < dialogs.length; i++) {
+          var buttons = dialogs[i].querySelectorAll("button")
+          for (var j = 0; j < buttons.length; j++) {
+            var label = welcomeLabel(buttons[j])
+            if (label === "\u7ee7\u7eed" || label === "Continue") {
+              welcomeHandled = true
+              dialogs[i].style.display = "none"
+              buttons[j].click()
+              return
+            }
+          }
+        }
+        // The dialog may portal a moment after the app paints; retry briefly.
+        if (attempt < 25) setTimeout(function () { dismissWelcomeIfAcknowledged(attempt + 1) }, 200)
+      }
+
+      // ── Composer behavior (mobile only) ────────────────────────────────
+      // On phones Enter inserts a newline instead of sending (the arrow
+      // button sends); IME composition and modified keys pass through.
+      // Only propagation is stopped: the browser's native newline insertion
+      // then proceeds untouched (cursor, draft, and input event stay
+      // native), while the app's send handler never sees the keydown.
+      function composerEnterToNewline(event) {
+        if (!mq.matches || event.isComposing || event.key !== "Enter") return
+        if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
+        var target = event.target
+        if (!(target instanceof HTMLTextAreaElement)) return
+        if (!target.matches('[class$="_input"]')) return
+        event.stopPropagation()
+      }
+
+      // Tell the mobile keyboard the composer's Enter inserts a line break.
+      function hintEnterKey() {
+        if (!mq.matches) return
+        var editor = document.querySelector('textarea[class$="_input"]')
+        if (editor !== null && !editor.hasAttribute("enterkeyhint")) {
+          editor.setAttribute("enterkeyhint", "enter")
+        }
+      }
+
+      // ── Loopback-only security notice ──────────────────────────────────
+      // dsh gates its whole settings/credentials plane to loopback; remote
+      // access hits HTTP 403 by design, and most surfaces swallow the
+      // failure silently (blank cards, empty fields) while the models page
+      // shows a bare transport error. Every settings section touches that
+      // plane somewhere — Models, plugin cards, permission and agent-preset
+      // rows inside General included — so one banner at the top of the
+      // settings panel explains the constraint whenever the page is served
+      // from a remote host, in the app's own locale, without claiming the
+      // whole page is broken (language/appearance still work remotely).
+      var LOOPBACK_HINT_ZH = "（提示：dsh 上游安全限制——配置/凭据接口仅限本机回环（localhost/127.0.0.1）访问，远程访问下依赖这些接口的配置（模型、插件、权限、Agent 预设等）不可用（HTTP 403）。请于运行 dsh 的电脑浏览器打开 http://127.0.0.1:<dsh端口>）"
+      var LOOPBACK_HINT_EN = "(Note: dsh's upstream security restricts configuration/credential interfaces to loopback (localhost/127.0.0.1); under remote access, configuration that depends on them (models, plugins, permissions, agent presets, etc.) is unavailable (HTTP 403). Open http://127.0.0.1:<dsh-port> in the browser on the machine running dsh.)"
+
+      function isLoopbackHost() {
+        var hostname = (typeof location !== "undefined" && location.hostname) || ""
+        if (hostname === "localhost" || hostname === "[::1]") return true
+        return /^127\./.test(hostname)
+      }
+
+      // The settings panel is open whenever the banner matters, so the nav
+      // cells reveal the app's locale (the app never sets document lang).
+      function uiIsChinese() {
+        var cells = document.querySelectorAll('[class*="_navCell"]')
+        for (var i = 0; i < cells.length; i++) {
+          if (/[\u4e00-\u9fff]/.test(cells[i].textContent || "")) return true
+        }
+        return false
+      }
+
+      // The settings panel mounts per open and unmounts on close; keep the
+      // banner in its content column while it applies, and take it out the
+      // moment the locale no longer calls for it.
+      function syncSettingsBanner() {
+        var content = document.querySelector('[class$="_overlay"] > [class$="_panel"] > [class$="_content"]')
+        var banner = content === null ? null : content.querySelector('[data-mobile-fit-hint]')
+        if (isLoopbackHost()) {
+          if (banner !== null) banner.remove()
+          return
+        }
+        var text = uiIsChinese() ? LOOPBACK_HINT_ZH : LOOPBACK_HINT_EN
+        if (banner === null && content !== null) {
+          banner = document.createElement("p")
+          banner.setAttribute("data-mobile-fit-hint", "")
+          banner.style.cssText = "margin:0;padding:10px 12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#81858c);background:var(--dsw-alias-bg-layer-3, rgba(128,128,128,0.12));border-bottom:1px solid var(--dsw-alias-border-l2, rgba(128,128,128,0.35))"
+          content.insertBefore(banner, content.firstChild)
+        }
+        if (banner !== null && banner.textContent !== text) banner.textContent = text
       }
 
       function ensureElements() {
         if (!mq.matches) { closeDrawer(); if (burger) { burger.remove(); burger = null; } return; }
+        expandSidebarForMobile(0)
+        dismissWelcomeIfAcknowledged(0)
+        hintEnterKey()
         if (!burger) {
           burger = document.createElement("button");
           burger.id = BURGER_ID;
@@ -103,20 +412,7 @@ window.__ModuleLoader__.load({
             if (document.body.hasAttribute("data-mobile-fit-open")) {
               closeDrawer();
             } else {
-              document.body.setAttribute("data-mobile-fit-open", "");
-              burger.textContent = "\u00d7";
-              if (!scrim) {
-                scrim = document.createElement("div");
-                scrim.id = SCRIM_ID;
-                scrim.style.cssText = [
-                  "position:fixed",
-                  "inset:0",
-                  "z-index:110",
-                  "background:rgba(0,0,0,0.4)"
-                ].join(";");
-                scrim.addEventListener("click", closeDrawer);
-                document.body.appendChild(scrim);
-              }
+              openDrawer();
             }
           });
           document.body.appendChild(burger);
@@ -127,6 +423,20 @@ window.__ModuleLoader__.load({
       var observer = new MutationObserver(ensureElements);
       observer.observe(document.body, { childList: true, subtree: false });
       mq.addEventListener("change", ensureElements);
+      document.addEventListener("click", recordWelcomeAck, true);
+      document.addEventListener("keydown", composerEnterToNewline, true);
+      // The settings panel mounts deep inside the React tree; watch the
+      // subtree and keep the remote-access banner in sync while it is open.
+      var hintTimer = null;
+      var hintObserver = new MutationObserver(function () {
+        if (hintTimer !== null) return
+        hintTimer = setTimeout(function () {
+          hintTimer = null
+          syncSettingsBanner()
+        }, 300)
+      });
+      hintObserver.observe(document.body, { childList: true, subtree: true });
+      syncSettingsBanner();
       ensureElements();
     }
 
