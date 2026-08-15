@@ -7,7 +7,7 @@
   远程经 Tailscale 隧道 `https://<机器名>.<tailnet>.ts.net/`）；
 - ✅ **手机网页端适配（mobile-fit）**：同一入口，窄屏自动启用移动端布局——
   抽屉导航、会话操作、输入体验、设置面板全屏化等（行为清单见
-  [docs/tutorial-m2.md](docs/tutorial-m2.md) 第 5 节）；
+  [docs/tutorial.md](docs/tutorial.md) 第 5 节）；
 - 🚧 **后续计划：APK（安卓原生壳）**。
 
 > ⚠️ **重要说明**：
@@ -23,7 +23,7 @@
 
 ## 快速开始
 
-完整教程：[docs/tutorial-m2.md](docs/tutorial-m2.md)（部署 dsh Web → Tailscale
+完整教程：[docs/tutorial.md](docs/tutorial.md)（部署 dsh Web → Tailscale
 serve + trustedHosts → 开机自启 → 启用手机适配）。
 
 核心步骤速览：
@@ -56,9 +56,9 @@ schtasks /end /tn dsh-web
 
 | 路径 | 说明 |
 |---|---|
-| `mobile-fit/` | **手机适配层**：注入式 client 插件（零上游改动，纯叠加；行为清单见 `docs/tutorial-m2.md` 第 5 节） |
+| `mobile-fit/` | **手机适配层**：注入式 client 插件（零上游改动，纯叠加；行为清单见 `docs/tutorial.md` 第 5 节） |
 | `scripts/` | 开机自启：`start-dsh.vbs` / `start-dsh.ps1`（wscript 隐藏启动器 + 看门狗，登录零窗口） |
-| `docs/tutorial-m2.md` | 完整教程：部署 / 手机适配 / 自启 / 停用 / 行为清单 / 自定义 |
+| `docs/tutorial.md` | 完整教程：部署 / 手机适配 / 自启 / 停用 / 行为清单 / 自定义 |
 | `docs/pitfalls.md` | **踩坑记录**：所有已知坑的根源与对策（改相关代码前必读） |
 | `deepseek-harness-master/` | 官方上游源码（**仅本地参考，不推送 GitHub**，已加入 `.gitignore`） |
 
@@ -74,15 +74,14 @@ schtasks /end /tn dsh-web
 
 | 现象 | 处理 |
 |---|---|
-| 手机打不开域名 | 检查手机 Tailscale App 是否已连接（VPN 图标）；确认与电脑同一账号 |
-| 页面能开但功能报 403 | `trustedHosts` 未生效：检查补丁文件语法（`!!js` 引号坑）、确认域名与 `tailscale serve status` 输出完全一致 |
-| 设置页"模型/插件配置"报 403 或空白（远程访问） | **dsh 上游安全设计**：配置/凭据接口仅限本机回环访问，远程域名访问一律 403，非配置问题。手机端无法使用；请在运行 dsh 的电脑浏览器打开 `http://127.0.0.1:<端口>` |
-| 内测声明每次刷新都弹出（远程访问） | 上游在远程浏览器下仅内存保存"已确认"状态；mobile-fit 已用 localStorage 持久化，**点一次"继续"后不再弹出**。若更新了上游声明版本号，会再提示一次属正常 |
-| 页面显示 "Failed to load plugins" | mobile-fit 插件未生效：确认 junction 存在（`Get-Item "$HOME\.dsh\profiles\web\node_modules\mobile-fit"`）、patch 行正确，然后**重启 dsh**（`schtasks /end /tn dsh-web`） |
-| 命令行找不到 `tailscale` | Windows 上使用完整路径：`C:\Program Files\Tailscale\tailscale.exe` |
+| 手机打不开域名 | 检查手机 Tailscale App 是否已连接（VPN 图标）；确认与电脑登录同一账号 |
 | 想用 IP 访问 | 不支持，请用域名 |
 | 重启电脑后手机连不上 | 确认 Tailscale 已随系统启动、`tailscale serve status` 显示运行中（serve 配置持久保存，通常无需重配） |
-| 开机出现 cmd.exe / 空白 powershell 窗口（旧版自启） | ⚠️ 已根治：自启任务已改为 `wscript.exe + .vbs`（SW_HIDE）启动，登录时零窗口。若仍看到旧式窗口，按教程第 2 节第 5 步重新注册并重启电脑。另有一个 `cmd.exe /C AMDRSServ.exe` 窗口是 AMD 显卡驱动，与项目无关，可关闭 |
+| 页面能开但某些功能报 403 | 先看是哪类功能：**配置/凭据类页面**（模型、插件配置、权限、Agent 预设等）远程访问必然 403，属 dsh 上游安全设计（接口仅限本机回环），请在运行 dsh 的电脑浏览器打开 `http://127.0.0.1:<端口>`；若**基础功能**（会话列表等）也 403，则是 `trustedHosts` 未生效——检查补丁文件语法（`!!js` 引号坑）、确认域名与 `tailscale serve status` 输出完全一致 |
+| 内测声明每次刷新都弹出 | 上游在远程浏览器下仅内存保存"已确认"状态；mobile-fit 已用 localStorage 持久化，**点一次"继续"后不再弹出**。若更新了上游声明版本号，会再提示一次属正常 |
+| 页面显示 "Failed to load plugins" | mobile-fit 插件未生效：确认 junction 存在（`Get-Item "$HOME\.dsh\profiles\web\node_modules\mobile-fit"`）、patch 行正确，然后**重启 dsh**（`schtasks /end /tn dsh-web`） |
+| 命令行找不到 `tailscale` | Windows 上使用完整路径：`C:\Program Files\Tailscale\tailscale.exe` |
+| 开机看到一个 cmd.exe 窗口 | 是 AMD 显卡驱动（`AMDRSServ.exe`），与项目无关，可关闭 |
 
 ## 路线图
 

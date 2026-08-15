@@ -1,6 +1,6 @@
 {
   "name": "mobile-fit",
-  "description": "M2: mobile UI adaptation layer for the dsh Web GUI. Injects viewport-aware CSS/JS into the official frontend via the client-plugin seam; no upstream changes.",
+  "description": "mobile UI adaptation layer for the dsh Web GUI. Injects viewport-aware CSS/JS into the official frontend via the client-plugin seam; no upstream changes.",
   "version": "0.1.0",
   "private": true,
   "type": "module",

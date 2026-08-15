@@ -1,4 +1,4 @@
-# mobile-fit（M2：dsh Web 移动端适配层）
+# mobile-fit（dsh Web 移动端适配层）
 
 > **状态：✅ 已可用（手机日常使用，持续打磨中）**。给 **dsh 官方 Web 界面**做手机
 > 适配：不换界面、不改上游，只通过 dsh 官方 client 插件 seam 注入移动端 CSS 与
@@ -66,13 +66,13 @@ window.__ModuleLoader__  ── 加载 /plugins/mobile-fit/client.js（本包注
 ## 验证
 
 - 手机打开 `https://<机器名>.<tailnet>.ts.net/`（与电脑同一入口）
-- 行为清单见 `docs/tutorial-m2.md` 第 5 节（抽屉、会话操作、输入、设置、声明、横幅等）；
+- 行为清单见 `docs/tutorial.md` 第 5 节（抽屉、会话操作、输入、设置、声明、横幅等）；
 - 电脑浏览器无变化
 - 回归可用 `node mobile-fit/test/bundle-shape.mjs` 验证插件形状
 
 ## 自定义
 
-编辑 `lib/client.js`，分四块（详见 `docs/tutorial-m2.md` 第 6 节）：
+编辑 `lib/client.js`，分四块（详见 `docs/tutorial.md` 第 6 节）：
 
 - `css` 字符串：移动端规则（媒体查询内；多类名元素用子串匹配，见
   `docs/pitfalls.md` 相应条目）；

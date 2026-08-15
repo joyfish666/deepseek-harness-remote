@@ -1,4 +1,4 @@
-// mobile-fit browser bundle (M2): mobile UI adaptation for the dsh Web GUI.
+// mobile-fit browser bundle: mobile UI adaptation for the dsh Web GUI.
 // Loaded through the official client-plugin seam (dsh.client / exports["./client"]),
 // exactly like @deepseek-ai/dsh-client-ui-* bundles. It injects a <style> with
 // viewport-aware rules and a small drawer interaction (the drawer shows the
