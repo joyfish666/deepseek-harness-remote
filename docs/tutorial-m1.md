@@ -89,14 +89,21 @@ https://<你的机器名>.<tailnet>.ts.net/
 Tailscale 是系统服务、serve 配置持久保存，重启电脑自动恢复；**dsh 本体不会自启**，需注册计划任务：
 
 ```powershell
-$action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-  -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<仓库路径>\scripts\start-dsh.ps1"'
+# 用 wscript 隐藏启动（vbs 包装），登录时无任何 cmd/powershell 窗口
+$action = New-ScheduledTaskAction -Execute 'wscript.exe' `
+  -Argument '"<仓库路径>\scripts\start-dsh.vbs"'
 $trigger = New-ScheduledTaskTrigger -AtLogOn
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
 Register-ScheduledTask -TaskName 'dsh-web' -Action $action -Trigger $trigger -Settings $settings -Force
 ```
 
-脚本行为：登录时启动 `npx @deepseek-ai/dsh web`；进程崩溃 10 秒后自动重启；端口被占用则退出避免双实例。日志：`~/.dsh/logs/dsh-web.log`。
+> 💡 **为什么用 wscript + vbs**：计划任务直接执行 `powershell.exe -WindowStyle Hidden` 时，
+> 隐藏标志在登录场景下**不生效**，会弹出两个"空的 powershell 窗口"（内容被重定向到日志，
+> 所以看起来是空白；且这些窗口与 Windows 默认终端机制叠加还会导致误杀服务进程）。
+> `start-dsh.vbs` 用 `WshShell.Run(..., 0, False)`（SW_HIDE）启动，**登录时零窗口**。
+> 2026-08-15 已在本机验证：网关（同款 vbs 方式）启动后无任何新窗口。
+
+脚本行为：登录时启动 dsh web（直接以 node 运行，无 cmd.exe 包装）；进程崩溃 10 秒后自动重启；端口被占用则退出避免双实例。日志：`~/.dsh/logs/dsh-web.log`。
 
 管理命令：
 

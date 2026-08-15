@@ -62,6 +62,8 @@
 | P26 | `https://<tailnet-ip>/` 打不开（TLS alert / schannel 不支持 IP SNI） | 本版 Serve 只为 **MagicDNS 域名**签证书；Windows schannel 对 IP 不发 SNI | 一律用 `https://<机器名>.<tailnet>.ts.net/`；测试用 Node/curl 而非 schannel |
 | P27 | 自启任务必须防双实例 | 登录时用户可能已手动启动 | 自启脚本先查端口占用（`Get-NetTCPConnection -LocalPort`）再启动 |
 | P28 | 手机键盘 Enter 会"发送"，用户期望换行 | 桌面习惯（Enter 发送）与手机输入法冲突 | 移动端 UI 里 Enter 一律换行，发送只走按钮（设计决策，非 bug） |
+| P32 | 计划任务登录时弹出两个**空白的 powershell.exe 窗口**（无内容、每次重启都有） | 任务 Action 直接执行 `powershell.exe -WindowStyle Hidden -File …`：**SW_HIDE 标志在任务计划登录场景下不生效**，watchdog 控制台被创建并显示（标题=进程路径；内容为空是因为输出全部重定向到了日志文件） | 任务 Action 改为 **`wscript.exe` + `.vbs` 包装**（vbs 里 `WshShell.Run "powershell … -File …", 0, False`，SW_HIDE 由 wscript 侧施加）→ 登录时零窗口。⚠️ 千万不要对已托管的 WindowsTerminal/控制台窗口执行 `taskkill /T`——托管在其中的服务进程（dsh/gateway）会被连带终止，3080/3100 全部挂掉 |
+| P33 | `-WindowStyle Hidden` 的 powershell 仍弹窗（与 P32 同类） | 同上：任务计划启动时的 STARTF_USESHOWWINDOW 处理与交互式 shell 不同 | 同上：一律 vbs 包装；修改已注册任务用 `schtasks /change /tn <任务> /tr "wscript.exe …\xxx.vbs"` |
 | P29 | remote 方法（goals 等）报 "must contain exactly one plain-object args field" / "missing agentId" | Typert wire 载荷固定为 `{args:{...}}` 单键对象；agent 查找身份字段名固定为 **`agentId`**（值=会话 id），业务参数平铺在 args 内 | `dsh.rpc('goals/create', { args: { agentId: sessionId, request: { objective } } })` |
 | P30 | `session.search` 报 "search is disabled: openAt never" | web-app bundle 默认 `session-query-sqlite.openAt: never`（全文搜索为 opt-in） | profile 补丁重述整行：`{path: ':memory:', openAt: first-search}`（首次搜索时懒建索引，热重载生效） |
 | P31 | `agentPreset.list` 返回结构是 `{presets:[...]}` 而非 `{items}` | 各域 wire 返回结构不同 | 网关层归一化对外契约（`{items}`），UI 不感知差异 |

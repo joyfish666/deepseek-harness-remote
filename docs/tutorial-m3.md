@@ -59,12 +59,16 @@ dsh web（127.0.0.1:3080）
 ## 3. 开机自启
 
 ```powershell
-$action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-  -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<仓库路径>\scripts\start-gateway.ps1"'
+# 用 wscript 隐藏启动（vbs 包装），登录时无任何 cmd/powershell 窗口
+$action = New-ScheduledTaskAction -Execute 'wscript.exe' `
+  -Argument '"<仓库路径>\scripts\start-gateway.vbs"'
 $trigger = New-ScheduledTaskTrigger -AtLogOn
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
 Register-ScheduledTask -TaskName 'dsh-gateway' -Action $action -Trigger $trigger -Settings $settings -Force
 ```
+
+> 💡 与 M1 教程相同的原因：计划任务直接跑 `powershell.exe -WindowStyle Hidden` 会弹出
+> 空白窗口（隐藏标志在登录场景不生效），`start-gateway.vbs` 用 SW_HIDE 启动，登录时零窗口。
 
 - 脚本自动定位到 `remote-gateway/` 目录（无需传 `-WorkDir`）；
 - 崩溃 10 秒后自动重启；3100 被占用则退出避免双实例；

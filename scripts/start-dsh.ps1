@@ -31,14 +31,28 @@ function Write-Log([string]$msg) {
   "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $msg" | Out-File -Append -Encoding utf8 -FilePath $logFile
 }
 
-# Resolve the installed dsh entry (node_modules/@deepseek-ai/dsh/lib/bin.js)
-# from the dsh.ps1 shim on PATH; returns '' when not resolvable.
+# Resolve the installed dsh entry (node_modules/@deepseek-ai/dsh/lib/bin.js).
+# Two lookup paths:
+#   1. the dsh shim on PATH (interactive shells have the npx .bin dir injected);
+#   2. the npx cache directly (scheduled tasks inherit only the registry PATH,
+#      which contains node/npm but NOT the _npx\<hash>\node_modules\.bin dir).
+# Returns '' when not resolvable (caller falls back to npx).
 function Resolve-DshBinJs {
   $shim = Get-Command dsh -CommandType ExternalScript -ErrorAction SilentlyContinue | Select-Object -First 1
-  if (-not $shim) { return '' }
-  $binDir = Split-Path (Split-Path $shim.Source -Parent) -Parent   # ...\.bin -> node_modules
-  $candidate = Join-Path $binDir '@deepseek-ai\dsh\lib\bin.js'
-  if (Test-Path $candidate) { return $candidate }
+  if ($shim) {
+    $binDir = Split-Path (Split-Path $shim.Source -Parent) -Parent   # ...\.bin -> node_modules
+    $candidate = Join-Path $binDir '@deepseek-ai\dsh\lib\bin.js'
+    if (Test-Path $candidate) { return $candidate }
+  }
+  $npxRoot = Join-Path $env:LOCALAPPDATA 'npm-cache\_npx'
+  $cached = Get-ChildItem -Path $npxRoot -Directory -ErrorAction SilentlyContinue |
+    ForEach-Object {
+      $candidate = Join-Path $_.FullName 'node_modules\@deepseek-ai\dsh\lib\bin.js'
+      if (Test-Path $candidate) { Get-Item $candidate }
+    } |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+  if ($cached) { return $cached.FullName }
   return ''
 }
 
