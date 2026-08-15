@@ -59,6 +59,18 @@
 - [x] 手机网页端适配（mobile-fit）
 - [ ] APK（安卓原生壳）
 
+## 贡献指南
+
+欢迎任何形式的贡献！无论是提出问题（[issues](https://github.com/joyfish666/deepseek-harness-remote/issues)）
+还是提交代码（[pull requests](https://github.com/joyfish666/deepseek-harness-remote/pulls)），
+即使是再小的毛病、再小的改动，我们都非常欢迎。
+
+开始开发之前，请先阅读相关文档，避免重复踩坑：
+
+- [docs/pitfalls.zh-CN.md](docs/pitfalls.zh-CN.md) —— 所有已知坑的根源与对策
+- [docs/tutorial.zh-CN.md](docs/tutorial.zh-CN.md) —— 项目如何部署与适配
+- [mobile-fit/README.zh-CN.md](mobile-fit/README.zh-CN.md) —— mobile-fit 插件的工作原理
+
 ## 许可证
 
 [MIT](LICENSE)

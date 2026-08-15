@@ -53,6 +53,16 @@
 - [x] Mobile web adaptation (mobile-fit)
 - [ ] APK (native Android shell)
 
+## Contributing
+
+Contributions are welcome! Feel free to open an [issue](https://github.com/joyfish666/deepseek-harness-remote/issues) or submit a [pull request](https://github.com/joyfish666/deepseek-harness-remote/pulls) — even the smallest problem report or fix is appreciated.
+
+Before you start developing, please read the relevant docs first to avoid repeating known pitfalls:
+
+- [docs/pitfalls.md](docs/pitfalls.md) — root causes and fixes for every known issue
+- [docs/tutorial.md](docs/tutorial.md) — how the project is deployed and adapted
+- [mobile-fit/README.md](mobile-fit/README.md) — how the mobile-fit plugin works
+
 ## License
 
 [MIT](LICENSE)
