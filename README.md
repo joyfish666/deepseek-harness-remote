@@ -2,11 +2,11 @@
 
 > 🌐 **Language**: English · [中文](README.zh-CN.md)
 
-**Use [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) from any device, anywhere.** Access your AI agent on desktop or phone — at home or remotely — with a mobile-optimized interface, and a native Android app on the way. Your agent, wherever you are.
+**Use [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) from any device, anywhere.** Access your AI agent on desktop or phone — at home or remotely — with a mobile-optimized interface, plus a native Android app (APK, see [docs/apk.md](docs/apk.md)). Your agent, wherever you are.
 
 - ✅ **Desktop web access**: `http://127.0.0.1:3080` locally; remotely via Tailscale at `https://<machine>.<tailnet>.ts.net/`
 - ✅ **Mobile web adaptation (mobile-fit)**: same entry point; narrow screens automatically get the mobile layout (drawer navigation, session actions, input experience, full-screen settings, etc.)
-- 🚧 **Next**: APK (native Android shell)
+- ✅ **APK (native Android shell)**: `apk/` directory, zero-dependency WebView container (usage: [docs/apk.md](docs/apk.md), dev: [apk/README.md](apk/README.md))
 
 > **Note**: this project **does not modify the dsh source** (a pure overlay). When upstream dsh changes, this project **adapts accordingly**.
 
@@ -24,8 +24,10 @@
 | Document | Audience | Content |
 |---|---|---|
 | [docs/tutorial.md](docs/tutorial.md) · [中文](docs/tutorial.zh-CN.md) | **All users** | Complete guide from zero to phone-ready; manual start and autostart options; full uninstall/rollback |
+| [docs/apk.md](docs/apk.md) · [中文](docs/apk.zh-CN.md) | **All users** | APK install & usage (first run, daily use, known limitations) |
 | [docs/pitfalls.md](docs/pitfalls.md) · [中文](docs/pitfalls.zh-CN.md) | **Developers / maintainers** (users can skip) | Pitfall log: root causes and fixes for every known issue |
 | [mobile-fit/README.md](mobile-fit/README.md) · [中文](mobile-fit/README.zh-CN.md) | **Developers** | The mobile-fit plugin package: how it works, install, customization, known notes |
+| [apk/README.md](apk/README.md) · [中文](apk/README.zh-CN.md) | **Developers** | The APK shell: build, install, debug, project layout |
 
 ## Security notes
 
@@ -51,7 +53,7 @@
 
 - [x] Desktop web access (deployment + Tailscale + trust fence + optional autostart)
 - [x] Mobile web adaptation (mobile-fit)
-- [ ] APK (native Android shell)
+- [x] APK (native Android shell, `apk/`, usage: docs/apk.md)
 
 ## Contributing
 

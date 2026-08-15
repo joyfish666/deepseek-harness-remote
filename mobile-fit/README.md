@@ -14,6 +14,7 @@
 - **Settings panel**: full-screen, nav becomes a horizontal tab strip, content scrolls; a bilingual **upstream-security banner** appears at the top under remote access (config/credential APIs are loopback-only);
 - **Persistence**: the internal-testing notice stops appearing after one acknowledgement (localStorage; upstream keeps it in memory only for remote browsers);
 - **Swipeable**: the stats line and the session title scroll horizontally to reveal full content;
+- **Native-shell integration**: when running inside the dsh-remote APK (`window.DshShell` exists), a ⚙ gear appears below ☰ and opens the native settings panel (URL/data/keep-awake/about); plain browsers see no button;
 - Desktop (wide >820px) is completely unaffected.
 
 ## How it works
@@ -80,4 +81,5 @@ Edit `lib/client.js` — four blocks:
 - **Plugin shape (important)**: the browser-side cordis loader applies the bundle's exports as a plugin, so it **must export `apply`** (a function or an object with an `apply` method); otherwise the page shows `Failed to load plugins ... invalid plugin, expect function or object with an "apply" method`. This package matches official bundles: `exports.apply = apply` (the injection runs at factory materialization). Validate with `node mobile-fit/test/bundle-shape.mjs`.
 - Selectors use official semantic class suffixes (`[class$="_sidebarCol"]` etc.) and `data-slot` names; the build-hash prefix (e.g. `pI_x6G_`) changes per version while the semantic suffix is stable — **regression-check after upstream dsh upgrades**.
 - The right details column is hidden on phones (`_detailsCol`); desktop is unaffected.
+- **DshShell bridge (APK only)**: `window.DshShell` is injected by the Android shell's `addJavascriptInterface` and exposes exactly one benign method (`openSettings`); the gear is created only when the bridge exists (progressive enhancement) and bridge calls are try/catch-guarded.
 - **Remote-access limitation (upstream security design)**: config/credential APIs are loopback-only (localhost); remote domains get 403 — the Models page, plugin config, permissions, agent presets, etc. are unavailable; language/appearance in General still work. mobile-fit shows a bilingual banner at the top of the settings panel.

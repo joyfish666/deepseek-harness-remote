@@ -7,8 +7,9 @@
 mobile-fit 适配层与 dsh 信任围栏原样生效。**不改任何 dsh 源码**（与仓库其余
 部分一样是纯叠加层）。
 
-**状态**：🚧 M1（最小可用壳）——可构建 debug APK；首次运行地址设置、Tailscale
-引导、返回键导航、外链跳系统浏览器、文件上传桥、下载管理、带重试的错误页。
+**状态**：✅ M1–M3 完成——最小可用壳（M1）；经 mobile-fit ⚙ 齿轮 + `DshShell`
+桥的原生设置、深色模式跟随、VPN 横幅实时更新（M2）；release 签名、文档与仓库
+路线图（M3）。debug 与 release 安装包开箱可构建；真机验证清单见 `docs/apk.zh-CN.md`。
 
 ## 是什么 / 不是什么
 
@@ -37,6 +38,36 @@ cd apk
 .\gradlew.bat assembleDebug          # 首次运行会下载 Gradle 与 AGP 依赖
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
+
+Release 构建（用 `keystore.properties` 签名，见下）：
+
+```powershell
+.\gradlew.bat assembleRelease
+adb install -r app\build\outputs\apk\release\app-release.apk
+```
+
+> debug 与 release 签名不同——**不要互相覆盖安装**；切换时先卸载。
+
+### Release 签名
+
+`apk/keystore.properties`（gitignored）保存 release 密钥库：
+
+```properties
+storeFile=C\:\\Users\\<you>\\.android\\dsh-remote-release.jks
+storePassword=...
+keyAlias=dsh-remote
+keyPassword=...
+```
+
+用 JDK `keytool` 一次性生成密钥库（有效期 10 年以上）：
+
+```powershell
+keytool -genkeypair -v -keystore "$env:USERPROFILE\.android\dsh-remote-release.jks" `
+  -alias dsh-remote -keyalg RSA -keysize 2048 -validity 10950 `
+  -dname "CN=DSH Remote, OU=personal, O=personal, C=CN"
+```
+
+没有该文件时 release 构建仍会成功但**不签名**（可用 `apksigner sign` 补签）。
 
 debug 构建已开启 WebView 远程调试：手机 USB 连接后，在电脑 Chrome 打开
 `chrome://inspect` 即可调试壳内页面。

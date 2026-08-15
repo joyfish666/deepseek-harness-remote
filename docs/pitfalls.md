@@ -68,3 +68,13 @@
 3. **Quantify performance problems first**: measure the data volume (event counts, message sizes) before choosing a fix.
 4. **Zero-dependency first**: prefer Node built-ins over npm packages; lowest deployment and maintenance cost.
 5. **Secure by default**: authentication, rate limiting, auditing, and directory constraints (out-of-bounds 403) are defaults, not options.
+
+## 7. Android shell (apk/)
+
+| # | Pitfall | Root cause | Fix |
+|---|---|---|---|
+| P28 | Crash on minSdk 26 devices (`NoSuchMethodError: String.isBlank`) | `String.isBlank()` is a Java 11 API available since API 33; AGP does no core-library desugaring by default | Always use `trim().isEmpty()`; check for high-API methods before committing (IDE lint / API diff) |
+| P29 | `services.gradle.org` resets mid-download (`curl: (56)`); the proxy 127.0.0.1:7890 downloads instantly | This network is unreliable to that domain (same cause as P5) | Point the wrapper `distributionUrl` at `https://mirrors.cloud.tencent.com/gradle/...` (verified reachable); or resume with `curl -C - -x http://127.0.0.1:7890` |
+| P30 | `gradlew` distribution download stalls at a 0-byte `.part` while curl/.NET reach the same URL | The wrapper's Java HTTP stack has a connection issue with the mirror CDN (proxy/redirect differences) | Pre-seed the wrapper cache: unzip the zip into `~/.gradle/wrapper/dists/<name>/<hash>/` and create the `.ok` file (the wrapper skips downloading); build locally with the unzipped gradle |
+| P31 | `gradle wrapper` fails: "repository 'maven' was added by initialization script" | The machine's global `~/.gradle/init.gradle` (Aliyun mirrors) adds project repositories, conflicting with `repositoriesMode = FAIL_ON_PROJECT_REPOS` in settings | Drop `FAIL_ON_PROJECT_REPOS` in this project (the init-script mirrors help on CN networks); do not edit the global init.gradle |
+| P32 | `gradlew.bat` returns exit code 1 from PowerShell although the log says "BUILD SUCCESSFUL" | gradlew.bat forwards javac stderr ("Note: ... uses or overrides a deprecated API"), and PowerShell treats native stderr as NativeCommandError | Judge success by the `BUILD SUCCESSFUL/FAILED` line, not the exit code; handle javac deprecation notes separately with `-Xlint:deprecation` |

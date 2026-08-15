@@ -8,9 +8,10 @@ phone browser uses — so the mobile-fit adaptation layer and dsh's trust fence
 apply unchanged. **No dsh source is touched** (pure overlay, like the rest of
 this repo).
 
-**Status**: 🚧 M1 (minimal usable shell) — builds a debug APK, first-run URL
-setup, Tailscale guidance, back-key navigation, external links open in the
-browser, file upload bridge, downloads, error screen with retry.
+**Status**: ✅ M1–M3 complete — minimal usable shell (M1), native settings via
+the mobile-fit ⚙ gear + `DshShell` bridge, dark-mode follow, live VPN banner
+(M2), release signing, docs and repo roadmap (M3). Debug and release APKs
+build out of the box; device verification checklist in `docs/apk.md`.
 
 ## What it is / is not
 
@@ -42,6 +43,38 @@ cd apk
 .\gradlew.bat assembleDebug          # first run downloads Gradle + AGP deps
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
+
+Release build (signed with `keystore.properties`, see below):
+
+```powershell
+.\gradlew.bat assembleRelease
+adb install -r app\build\outputs\apk\release\app-release.apk
+```
+
+> Debug and release builds use different signatures — do not install one over
+> the other; uninstall first when switching.
+
+### Release signing
+
+`apk/keystore.properties` (gitignored) carries the release keystore:
+
+```properties
+storeFile=C\:\\Users\\<you>\\.android\\dsh-remote-release.jks
+storePassword=...
+keyAlias=dsh-remote
+keyPassword=...
+```
+
+Create the keystore once with JDK `keytool` (validity 10+ years):
+
+```powershell
+keytool -genkeypair -v -keystore "$env:USERPROFILE\.android\dsh-remote-release.jks" `
+  -alias dsh-remote -keyalg RSA -keysize 2048 -validity 10950 `
+  -dname "CN=DSH Remote, OU=personal, O=personal, C=CN"
+```
+
+Without the properties file the release build still succeeds but stays
+unsigned (installable after `apksigner sign`).
 
 Debug builds enable WebView remote debugging: connect the phone over USB and
 open `chrome://inspect` in desktop Chrome to drive/inspect the app's page.

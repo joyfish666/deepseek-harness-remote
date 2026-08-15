@@ -69,3 +69,13 @@
 3. **性能类问题先量化**：先测数据量级（历史事件数、单条消息大小），再决定对策。
 4. **零依赖优先**：能用 Node 内置能力就不用 npm 包，部署与维护成本最低。
 5. **安全默认关**：认证、限流、审计、目录约束（越界 403）都是默认行为，不是可选项。
+
+## 七、安卓壳（apk/）
+
+| # | 坑 | 根源 | 对策 |
+|---|---|---|---|
+| P28 | 代码在 minSdk 26 的设备上崩（`NoSuchMethodError: String.isBlank`） | `String.isBlank()` 是 API 33 才有的 Java 11 API；AGP 默认不做 core-library desugaring | 一律用 `trim().isEmpty()`；提交前检查是否用了高版本 API（IDE lint / API 差异表） |
+| P29 | `services.gradle.org` 下载 Gradle 发行包连接重置（`curl: (56)`），代理 127.0.0.1:7890 秒下 | 本机网络到该域不稳定（P5 同因） | wrapper `distributionUrl` 指向 `https://mirrors.cloud.tencent.com/gradle/...`（已验证可达）；或 `curl -C - -x http://127.0.0.1:7890` 断点续传 |
+| P30 | `gradlew` 下载发行包 .part 文件 0 字节停滞，而 curl/.NET 均可达同一 URL | wrapper 的 Java HTTP 栈与镜像 CDN 的连接问题（代理/重定向差异） | 预置 wrapper 缓存：把 zip 解压到 `~/.gradle/wrapper/dists/<名称>/<hash>/` 并创建 `.ok` 文件（wrapper 跳过下载）；本机构建直接用本地解压的 gradle |
+| P31 | `gradle wrapper` 报 "repository 'maven' was added by initialization script" | 本机全局 `~/.gradle/init.gradle`（阿里云镜像）往项目加仓库，与 settings 里 `repositoriesMode = FAIL_ON_PROJECT_REPOS` 冲突 | 该项目去掉 `FAIL_ON_PROJECT_REPOS`（init 脚本镜像对国内网络有益）；不要改全局 init.gradle |
+| P32 | PowerShell 执行 `gradlew.bat` 返回 exit code 1，但日志明明 "BUILD SUCCESSFUL" | gradlew.bat 把 javac 的 stderr（"注: ...使用或覆盖了已过时的 API"）当错误输出，PowerShell 把原生程序 stderr 判定为 NativeCommandError | 判断成败以输出里的 `BUILD SUCCESSFUL/FAILED` 为准，不要看 exit code；javac 的过时 API 提示用 `-Xlint:deprecation` 另行处理 |

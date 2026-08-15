@@ -4,13 +4,14 @@
 
 **在任何设备上，随时随地使用 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)。**
 电脑、手机都能用 —— 在家、在外都能远程操控你的 AI 智能体；手机端有专属优化界面，
-原生 Android 应用即将推出。
+另有原生 Android 应用（APK，见 [docs/apk.zh-CN.md](docs/apk.zh-CN.md)）。
 
 - ✅ **电脑网页端访问**：本机 `http://127.0.0.1:3080`；远程经 Tailscale 隧道
   `https://<机器名>.<tailnet>.ts.net/`
 - ✅ **手机网页端适配（mobile-fit）**：同一入口，窄屏自动启用移动端布局（抽屉导航、
   会话操作、输入体验、设置面板全屏化等）
-- 🚧 **后续计划**：APK（安卓原生壳）
+- ✅ **APK（安卓原生壳）**：`apk/` 目录，WebView 容器零依赖（使用说明见
+  [docs/apk.zh-CN.md](docs/apk.zh-CN.md)，开发文档见 [apk/README.zh-CN.md](apk/README.zh-CN.md)）
 
 > **重要说明**：本项目**无需修改源 dsh 代码**（纯叠加层）；上游 dsh 源码更新后，
 > 本项目会**同步适配**。
@@ -30,8 +31,10 @@
 | 文档 | 读者 | 内容 |
 |---|---|---|
 | [docs/tutorial.zh-CN.md](docs/tutorial.zh-CN.md) · [English](../docs/tutorial.md) | **所有用户** | 从零部署到手机可用的完整教程；含手动启动与开机自启两种方式、彻底卸载还原 |
+| [docs/apk.zh-CN.md](docs/apk.zh-CN.md) · [English](../docs/apk.md) | **所有用户** | APK 安装与使用说明（首次运行、日常操作、已知限制） |
 | [docs/pitfalls.zh-CN.md](docs/pitfalls.zh-CN.md) · [English](../docs/pitfalls.md) | **开发者 / 维护者**（仅使用的用户可跳过） | 踩坑记录：所有已知坑的根源与对策 |
 | [mobile-fit/README.zh-CN.md](mobile-fit/README.zh-CN.md) · [English](../mobile-fit/README.md) | **开发者** | mobile-fit 插件包：原理、安装、自定义、已知说明 |
+| [apk/README.zh-CN.md](apk/README.zh-CN.md) · [English](../apk/README.md) | **开发者** | APK 壳：构建、安装、调试、工程结构 |
 
 ## 安全说明
 
@@ -57,7 +60,7 @@
 
 - [x] 电脑网页端访问（部署 + Tailscale + 信任围栏 + 可选自启）
 - [x] 手机网页端适配（mobile-fit）
-- [ ] APK（安卓原生壳）
+- [x] APK（安卓原生壳，`apk/`，使用说明见 docs/apk.zh-CN.md）
 
 ## 贡献指南
 

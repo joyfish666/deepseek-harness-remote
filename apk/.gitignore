@@ -5,6 +5,7 @@ build/
 
 # Local machine state
 local.properties
+keystore.properties
 
 # Build outputs
 *.apk
