@@ -10,10 +10,13 @@
 #
 # NOTE: keep this file ASCII-only so it parses correctly under Windows PowerShell 5.1
 # regardless of the system codepage (UTF-8-without-BOM files are read as ANSI there).
+#
+# FIX (2026-08-15): removed $ErrorActionPreference='Stop' - under PowerShell 5.1 a
+# stderr line from the native command (npx) redirected with *>> becomes a terminating
+# error and would kill the watchdog loop.
 param(
   [string]$WorkDir = $PSScriptRoot
 )
-$ErrorActionPreference = 'Stop'
 
 $logDir = Join-Path $env:USERPROFILE '.dsh\logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null

@@ -2,10 +2,23 @@
 
 在本地运行 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）的基础上，实现**远程控制**：让手机、平板、其他电脑通过网络远程启动任务、查看运行状态、管理会话。
 
-当前已实现：
+当前状态：
 
-- **M1：Tailscale 隧道 + 官方 Web UI**——无需改动 dsh 任何代码，手机浏览器即可获得与电脑一致的完整控制界面。
-- **M2：手机 App（自建网关 + PWA）**——`remote-gateway/` 零依赖网关 + 移动端应用：新建会话、查看工作区与文件、同步会话、发消息与命令、模型选择、审批、多语言（跟随系统），带 Token 认证与审计日志。
+- **M1（✅ 完全可用）：Tailscale 隧道 + 官方 Web UI**——无需改动 dsh 任何代码，手机浏览器即可获得与电脑一致的完整控制界面。**M1 就是 dsh 官方原生的网站本身**（原生网站），只是通过 Tailscale 隧道把它安全地送到手机上。**日常使用请认准 M1。**
+- **M2（🚧 开发中）：手机 App（自建网关 + PWA）**——`remote-gateway/` 零依赖网关 + 移动端应用：新建会话、查看工作区与文件、同步会话、发消息与命令、模型选择、审批、多语言（跟随系统），带 Token 认证与审计日志。
+
+> ⚠️ **重要：M2 还在开发中，M1 已经完全可用。**
+>
+> **M2 并不是比 M1 更好，两者是完全独立的两套方案，互不依赖、互不替代：**
+>
+> | | M1 | M2 |
+> |---|---|---|
+> | 形态 | **原生网站**（dsh 官方 Web UI 原样，零自建代码） | 自建网关 + 手机 App（PWA） |
+> | 入口 | `https://<机器名>.<tailnet>.ts.net/` | `https://<机器名>.<tailnet>.ts.net/m/` |
+> | 状态 | ✅ 完全可用，最稳定 | 🚧 开发中，功能仍在打磨 |
+> | 定位 | 日常使用的正式入口 | 试验性移动端界面 |
+>
+> 遇到任何问题请优先使用 M1；M2 仅作开发验证用途。
 
 后续规划见 [方案文档](docs/remote-control-plan.md)。
 
@@ -83,8 +96,9 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 
 ---
 
-## 手机 App（M2：自建网关 + PWA）
+## 手机 App（M2：自建网关 + PWA）——🚧 开发中
 
+> ⚠️ **M2 仍在开发中，目前不以它为准**；日常使用请用上面的 M1（原生网站）。M2 不是 M1 的替代或升级，两者完全独立。
 > 在手机上像原生 App 一样使用的移动端客户端（PWA：可"添加到主屏幕"，全屏独立运行，无地址栏）。会话、项目、模型调用全部在电脑上运行，手机只是遥控器与显示器。
 
 ### 功能
@@ -159,26 +173,36 @@ https://<你的机器名>.<你的tailnet>.ts.net/
 
 ## 开机自启（推荐）
 
-重启电脑后，**Tailscale 服务和 serve 转发会自动恢复**（Tailscale 是系统服务，serve 配置持久保存），但 **dsh 本体不会自启**，需要手动配置。仓库提供了自启脚本 `scripts/start-dsh.ps1`：
+重启电脑后，**Tailscale 服务和 serve 转发会自动恢复**（Tailscale 是系统服务，serve 配置持久保存），但 **dsh 本体与网关不会自启**，需要手动配置。仓库提供了自启脚本 `scripts/start-dsh.ps1`（dsh）与 `scripts/start-gateway.ps1`（M2 网关）：
 
-1. 注册计划任务（登录时自动启动；dsh 崩溃后 10 秒自动重启；若 3080 已被占用则直接退出避免双实例）：
+1. 注册计划任务（登录时自动启动；进程崩溃后 10 秒自动重启；若端口已被占用则直接退出避免双实例）：
 
    ```powershell
+   # dsh（M1，端口 3080）
    $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
      -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<仓库路径>\scripts\start-dsh.ps1"'
    $trigger = New-ScheduledTaskTrigger -AtLogOn
    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
    Register-ScheduledTask -TaskName 'dsh-web' -Action $action -Trigger $trigger -Settings $settings -Force
+
+   # 网关（M2，端口 3100）
+   $action2 = New-ScheduledTaskAction -Execute 'powershell.exe' `
+     -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<仓库路径>\scripts\start-gateway.ps1"'
+   Register-ScheduledTask -TaskName 'dsh-gateway' -Action $action2 -Trigger $trigger -Settings $settings -Force
    ```
 
-2. 脚本日志：`~/.dsh/logs/dsh-web.log`（启动、退出码、重启记录）。
+   > 网关脚本会自行定位到 `remote-gateway/` 目录（脚本位于 `<仓库路径>\scripts\`，自动推导上级目录下的 `remote-gateway`），无需手动传 `-WorkDir`。
+   > ⚠️ **历史坑**：早期版本默认在脚本所在目录（`scripts/`）启动 `node server.js`，导致找不到 `server.js` 启动失败（表现为重启后手机能开 M1 但打不开 M2）。2026-08-15 已修复，旧任务无需重新注册，重启后自动生效。
+
+2. 脚本日志：`~/.dsh/logs/dsh-web.log`（dsh）、`~/.dsh/logs/gateway.log`（网关，启动、退出码、重启记录）。
 3. 管理命令：
 
    | 操作 | 命令 |
    |---|---|
-   | 查看任务 | `Get-ScheduledTask -TaskName dsh-web` |
-   | 停用自启 | `Unregister-ScheduledTask -TaskName dsh-web` |
-   | 查看日志 | `Get-Content $HOME\.dsh\logs\dsh-web.log -Tail 50` |
+   | 查看任务 | `Get-ScheduledTask -TaskName dsh-web, dsh-gateway` |
+   | 立即启动（不重启） | `schtasks /run /tn dsh-gateway` |
+   | 停用自启 | `Unregister-ScheduledTask -TaskName dsh-web; Unregister-ScheduledTask -TaskName dsh-gateway` |
+   | 查看日志 | `Get-Content $HOME\.dsh\logs\gateway.log -Tail 50` |
 
 ---
 
@@ -256,7 +280,7 @@ tailscale serve --https=443 off    # 关闭转发，手机立即无法访问
 | 命令行找不到 `tailscale` | Windows 上使用完整路径：`C:\Program Files\Tailscale\tailscale.exe` |
 | 想用 IP 访问 | 不支持，请用域名 |
 | 重启电脑后手机连不上 | 确认 Tailscale 已随系统启动、`tailscale serve status` 显示运行中（serve 配置持久保存，通常无需重配） |
-| 网关页面 401 / 连不上 | 检查 `remote-gateway/.env` 的 `GATEWAY_TOKEN` 与手机输入是否一致；`Get-ScheduledTask -TaskName dsh-gateway` 查看任务状态 |
+| 网关页面 401 / 连不上 | 检查 `remote-gateway/.env` 的 `GATEWAY_PASSWORD` 与手机输入是否一致；`Get-ScheduledTask -TaskName dsh-gateway` 查看任务状态；`schtasks /run /tn dsh-gateway` 立即启动 |
 | 网关日志 | `Get-Content $HOME\.dsh\logs\gateway.log -Tail 50`；审计：`gateway-audit.log` |
 
 ## 目录结构
@@ -271,8 +295,8 @@ tailscale serve --https=443 off    # 关闭转发，手机立即无法访问
 
 ## 路线图
 
-- [x] M1：Tailscale 隧道 + 官方 Web UI 远程访问（本仓库即指南）
-- [x] M2：自建远程网关 + 手机 App（PWA）：会话/工作区/文件/命令/模型/审批/多语言，Token 认证 + 审计
+- [x] M1：Tailscale 隧道 + 官方 Web UI 远程访问（本仓库即指南）——**完全可用，日常使用入口**
+- [ ] M2：自建远程网关 + 手机 App（PWA）：会话/工作区/文件/命令/模型/审批/多语言，Token 认证 + 审计——**开发中**（独立方案，非 M1 的替代/升级）
 - [ ] M3：可选——dsh 外部插件补强能力（如全量事件、会话推送通知）
 
 ## 许可证

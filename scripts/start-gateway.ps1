@@ -10,10 +10,15 @@
 #
 # NOTE: keep this file ASCII-only so it parses correctly under Windows PowerShell 5.1
 # regardless of the system codepage (UTF-8-without-BOM files are read as ANSI there).
+#
+# FIX (2026-08-15): the default WorkDir now resolves to <repo-root>/remote-gateway
+# (server.js lives there, NOT in scripts/); the previous default ($PSScriptRoot)
+# made the scheduled task launch node in the wrong folder and fail instantly.
+# Also removed $ErrorActionPreference='Stop': under PowerShell 5.1 a node stderr
+# line redirected with *>> turns into a terminating error and kills the watchdog.
 param(
-  [string]$WorkDir = $PSScriptRoot
+  [string]$WorkDir = ''
 )
-$ErrorActionPreference = 'Stop'
 
 $logDir = Join-Path $env:USERPROFILE '.dsh\logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
@@ -21,6 +26,11 @@ $logFile = Join-Path $logDir 'gateway.log'
 
 function Write-Log([string]$msg) {
   "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $msg" | Out-File -Append -Encoding utf8 -FilePath $logFile
+}
+
+if (-not $WorkDir) {
+  # Default: <repo-root>/remote-gateway (this script lives in <repo-root>/scripts).
+  $WorkDir = Join-Path (Split-Path $PSScriptRoot -Parent) 'remote-gateway'
 }
 
 Set-Location $WorkDir
