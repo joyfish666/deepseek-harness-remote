@@ -304,8 +304,11 @@ public final class MainActivity extends Activity {
         if (token.isEmpty()) return;
         String origin = originOf(url);
         if (origin == null) return;
+        // SameSite=None+Secure matches the proxy's login cookie so the
+        // WebSocket event streams carry it in every client.
         CookieManager.getInstance().setCookie(origin,
-                "dsh_remote_config_token=" + Uri.encode(token) + "; Path=/; Max-Age=31536000");
+                "dsh_remote_config_token=" + Uri.encode(token)
+                        + "; Path=/; SameSite=None; Secure; Max-Age=31536000");
     }
 
     // ── Main web view ────────────────────────────────────────────────────

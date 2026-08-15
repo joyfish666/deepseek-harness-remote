@@ -414,9 +414,13 @@ function handleLogin(req, res) {
       return serveLoginPage(res, true)
     }
     log('login accepted')
+    // SameSite=None+Secure: Chromium does not send SameSite=Lax cookies on
+    // WebSocket handshakes, which broke the mux/host event streams in the
+    // phone browser (the app retried forever, ~10s per cycle). None+Secure
+    // is the documented combination that makes cookies ride WS upgrades.
     res.writeHead(302, {
       location: '/',
-      'set-cookie': `${COOKIE_NAME}=${TOKEN}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE}`,
+      'set-cookie': `${COOKIE_NAME}=${TOKEN}; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=${COOKIE_MAX_AGE}`,
     })
     res.end()
   })
@@ -429,7 +433,7 @@ function handleLogin(req, res) {
 // passes it, and the 101 + raw bytes are relayed verbatim.
 server.on('upgrade', (req, socket, head) => {
   if (TOKEN && !isAuthed(req)) {
-    log(`upgrade denied  ${req.url}`)
+    log(`upgrade denied  ${req.url}  cookie=${JSON.stringify(req.headers.cookie ?? null)} host=${JSON.stringify(req.headers.host)}`)
     // end() (not destroy()) so the 403 body flushes before the socket closes.
     socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
     return
