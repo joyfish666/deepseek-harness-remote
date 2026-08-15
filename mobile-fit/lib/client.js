@@ -343,22 +343,31 @@ window.__ModuleLoader__.load({
       // isTrusted=true even when script called focus() (the focusing steps
       // run internally, never a script dispatch), so isTrusted is useless
       // here. The reliable signal is the pointer that precedes the focus: a
-      // pointerdown inside the composer dock (the box or its buttons) is
-      // typing intent; anything else (session row, drawer, onboarding
-      // dialog) is not. The composer textarea itself counts regardless of
-      // dock ancestry: if the slot wrapper ever re-renders around it, a
-      // real tap must not be mistaken for script focus. Focus within 1s of
-      // such a pointerdown is allowed — a real tap focuses in that window,
-      // and the send button's keep-focus refocus rides a mousedown inside
-      // the dock — while any other composer focus is refused. Chrome
-      // cancels focusin outright via preventDefault (no keyboard flash);
-      // engines where focusin is not cancelable get the blur() fallback.
+      // pointerdown inside the composer is typing intent; anything else
+      // (session row, drawer, onboarding dialog) is not. Three shapes count:
+      // (1) the composer textarea itself (self-match, immune to ancestor
+      // lookups), (2) the composer card [data-composer-card] — upstream
+      // renders the dock slot as the card's FOOTER CHILD (a sibling of the
+      // textarea branch, NOT an ancestor), so closest() from the textarea
+      // can never find the dock slot and the send/tool buttons live in the
+      // card too: their keep-focus refocus must stay allowed, (3) the dock
+      // slot itself, for layouts where it does wrap the composer. Focus
+      // within 1s of such a pointerdown is allowed — a real tap focuses in
+      // that window, and the send button's keep-focus refocus rides a
+      // mousedown inside the card — while any other composer focus is
+      // refused. Chrome cancels focusin outright via preventDefault (no
+      // keyboard flash); engines where focusin is not cancelable get the
+      // blur() fallback.
       var lastDockPointerAt = 0
       function noteComposerPointer(event) {
         if (!mq.matches) return
         var target = event.target
         if (!(target instanceof Element)) return
         if (target.matches('textarea[class$="_input"]')) {
+          lastDockPointerAt = Date.now()
+          return
+        }
+        if (target.closest('[data-composer-card]') !== null) {
           lastDockPointerAt = Date.now()
           return
         }

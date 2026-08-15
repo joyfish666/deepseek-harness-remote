@@ -66,10 +66,12 @@ if (typeof focusin !== "function" || typeof pointerdown !== "function") {
 }
 
 // ── Scenario helpers ────────────────────────────────────────────────────
-function composerTarget({ inDock = false, matchesInput = true } = {}) {
+function composerTarget({ inCard = false, inDock = false, matchesInput = true } = {}) {
   const t = new FakeTextarea();
   t.matchesResult = matchesInput;
-  t.closestResult = inDock ? {} : null;
+  // Upstream renders the dock slot as the card's footer CHILD: the
+  // textarea's ancestor chain holds the card but never the dock slot.
+  t.closestResult = inCard ? { card: true } : inDock ? { dock: true } : null;
   return t;
 }
 function fireFocusin(target) {
@@ -111,7 +113,8 @@ function check(name, cond) {
 }
 
 // 3b. Tap DIRECTLY on the textarea whose dock ancestor lookup fails
-// (slot wrapper re-rendered / re-parented): still typing intent.
+// (the dock slot is the card's footer sibling, never an ancestor —
+// the actual upstream layout): still typing intent.
 {
   const ta = new FakeTextarea();
   ta.matchesResult = true;
@@ -119,6 +122,16 @@ function check(name, cond) {
   firePointerdown(ta);
   const { target: t } = fireFocusin(composerTarget());
   check("textarea self-tap survives dock mismatch", t.blurred !== true);
+}
+
+// 3c. Tap inside the composer CARD (send/tool buttons): typing intent,
+// so the keep-focus refocus that follows the mousedown is kept.
+{
+  const button = new FakeElement();
+  button.closestResult = { card: true }; // inside [data-composer-card]
+  firePointerdown(button);
+  const { target: t } = fireFocusin(composerTarget());
+  check("card tap (send keep-focus) is kept", t.blurred !== true);
 }
 
 // 4. Scripted refocus within the 1000ms grace (send-button keep-focus): kept.
