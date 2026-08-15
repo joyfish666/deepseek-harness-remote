@@ -8,6 +8,10 @@ dist/
 *.tsbuildinfo
 pnpm-debug.log
 
+# M3 mobile-fit ships a hand-written client bundle in lib/ (no build step) - keep it.
+!mobile-fit/lib/
+!mobile-fit/lib/*.js
+
 # Env & secrets
 .env
 .env.local
