@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark base theme matching the dsh design platform: the setup screen,
-         settings dialog and error screen all render dark; the accent also
-         drives the EditText cursor so it stays visible on dark inputs. -->
-    <style name="Theme.DshRemote" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">#151517</item>
-        <item name="android:colorAccent">#679EFE</item>
-        <item name="android:textColorPrimary">#F9FAFB</item>
+    <!-- Light base theme: the setup screen, settings dialog and error
+         screen render light; the accent drives the EditText cursor. -->
+    <style name="Theme.DshRemote" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:colorAccent">#4176E6</item>
         <!-- Android 15+ enforces edge-to-edge for targetSdk 35: the WebView
              would draw under the status bar / camera punch-hole. Opt out so
              content starts below the status bar. -->

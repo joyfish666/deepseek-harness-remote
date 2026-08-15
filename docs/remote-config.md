@@ -113,6 +113,15 @@ slow phone link every load re-downloads the whole bundle set (seconds); the
 rev is a content hash, so the URL changes when the content changes and
 immutable caching is safe.
 
+## Slow-load diagnostics (temporary tool)
+
+Restart the proxy with `DSH_PROXY_DIAG=1` and the page gets a floating
+"copy diagnostics" button (bottom-right): it snapshots navigation timing,
+slow resources, WebSocket open latencies, the moment the first session row
+rendered, and connection info as JSON. Remove the env var and restart to
+turn it off. The tool only injects into the page; it never changes
+forwarding behavior.
+
 ## Autostart (optional)
 
 Follows the existing zero-window pattern (see tutorial section 4):

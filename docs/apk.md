@@ -57,7 +57,8 @@ build, uninstall first.
 - The phone must keep Tailscale connected to reach the computer;
 - "Clear cache & site data" also clears the internal-testing notice
   acknowledgement (it will prompt once more);
-- Dark mode follows the system (the page reloads once when it switches).
+- The app chrome is light-styled (settings panel, error screen, etc.); the
+  page content follows the dsh UI's own appearance setting.
 
 ## 6. Phone verification checklist
 

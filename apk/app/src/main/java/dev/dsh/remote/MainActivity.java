@@ -161,14 +161,14 @@ public final class MainActivity extends Activity {
         watchVpn();
     }
 
-    // ── First-run setup (dsh design style: dark card, brand mark, token) ─
-    private static final int C_BG = 0xFF151517;
-    private static final int C_CARD = 0xFF232324;
-    private static final int C_INPUT = 0xFF2C2C2E;
-    private static final int C_LABEL = 0xFFF9FAFB;
-    private static final int C_LABEL_2 = 0xFFCFD3D6;
-    private static final int C_LABEL_3 = 0xFFADAEB2;
-    private static final int C_BORDER = 0x1FFFFFFF;
+    // ── First-run setup (light dsh style: white card, rounded inputs) ────
+    private static final int C_BG = 0xFFF9FAFB;
+    private static final int C_CARD = 0xFFFFFFFF;
+    private static final int C_INPUT = 0xFFF3F4F6;
+    private static final int C_LABEL = 0xFF0F1115;
+    private static final int C_LABEL_2 = 0xFF61666B;
+    private static final int C_LABEL_3 = 0xFF81858C;
+    private static final int C_BORDER = 0x1A000000;
     private static final int C_BRAND = 0xFF4176E6;
     private static final int C_BRAND_HOVER = 0xFF679EFE;
 
@@ -267,12 +267,18 @@ public final class MainActivity extends Activity {
 
         root.addView(styledLabel(getString(R.string.setup_url_label)));
         EditText urlInput = styledInput(getString(R.string.setup_url_hint), false);
-        root.addView(urlInput);
+        LinearLayout.LayoutParams urlLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        urlLp.bottomMargin = dp(12);
+        root.addView(urlInput, urlLp);
 
         root.addView(styledLabel(getString(R.string.setup_token_label)));
         EditText tokenInput = styledInput(getString(R.string.setup_token_hint), true);
         tokenInput.setText(getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_TOKEN, ""));
-        root.addView(tokenInput);
+        LinearLayout.LayoutParams tokenLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tokenLp.bottomMargin = dp(14);
+        root.addView(tokenInput, tokenLp);
 
         Button connect = primaryButton(getString(R.string.setup_connect));
         connect.setOnClickListener(v -> {
