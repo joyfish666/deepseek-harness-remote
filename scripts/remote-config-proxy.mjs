@@ -194,10 +194,103 @@ function loginPage(error) {
 const PROXY_FLAG_SCRIPT = '<script>window.__DSH_PROXY__=true</script>'
 const CONNECTION_ROW_ID = '@deepseek-ai/dsh-client-connection'
 
+// Temporary diagnostics (enable with DSH_PROXY_DIAG=1): injects a floating
+// "copy diagnostics" button that snapshots navigation timing, slow
+// resources, WebSocket open latencies, the moment the first session row
+// rendered, and connection info — paste the JSON back to debug slow loads.
+const DIAG_ENABLED = process.env.DSH_PROXY_DIAG === '1'
+const DIAG_SCRIPT = `<script>
+(function () {
+  if (window.__DSH_DIAG__) return
+  window.__DSH_DIAG__ = true
+  var t0 = performance.now()
+  var wsOpens = []
+  var firstSessionRowMs = null
+  try {
+    var NativeWS = window.WebSocket
+    window.WebSocket = function (url, protocols) {
+      var start = performance.now()
+      var ws = protocols === undefined ? new NativeWS(url) : new NativeWS(url, protocols)
+      ws.addEventListener('open', function () {
+        wsOpens.push({ url: String(url).replace(location.origin, ''), afterInjectMs: Math.round(performance.now() - t0), wsConnectMs: Math.round(performance.now() - start) })
+      })
+      return ws
+    }
+    window.WebSocket.prototype = NativeWS.prototype
+    window.WebSocket.CONNECTING = NativeWS.CONNECTING
+    window.WebSocket.OPEN = NativeWS.OPEN
+    window.WebSocket.CLOSING = NativeWS.CLOSING
+    window.WebSocket.CLOSED = NativeWS.CLOSED
+  } catch (e) { wsOpens.push({ error: String(e) }) }
+  var observer = new MutationObserver(function () {
+    if (firstSessionRowMs !== null) return
+    if (document.querySelector('[class*="_sessionRow"]') !== null) {
+      firstSessionRowMs = Math.round(performance.now() - t0)
+      observer.disconnect()
+    }
+  })
+  if (document.body) observer.observe(document.body, { childList: true, subtree: true })
+  function collect() {
+    var resources = []
+    try {
+      resources = performance.getEntriesByType('resource').map(function (e) {
+        return { name: e.name.replace(location.origin, '').split('?')[0], ms: Math.round(e.duration), bytes: e.transferSize, cached: e.transferSize === 0 }
+      }).filter(function (r) { return r.ms > 100 }).sort(function (a, b) { return b.ms - a.ms }).slice(0, 30)
+    } catch (e) {}
+    var nav = null
+    try {
+      var n = performance.getEntriesByType('navigation')[0]
+      if (n) nav = { ttfbMs: Math.round(n.responseStart - n.requestStart), domMs: Math.round(n.domContentLoadedEventEnd - n.startTime), loadMs: Math.round(n.loadEventEnd - n.startTime) }
+    } catch (e) {}
+    var conn = null
+    try {
+      var c = navigator.connection || {}
+      conn = { type: c.effectiveType || '?', rttMs: c.rtt, downlinkMb: c.downlink }
+    } catch (e) {}
+    return JSON.stringify({
+      time: new Date().toISOString(),
+      href: location.href,
+      connection: conn,
+      navigation: nav,
+      wsOpens: wsOpens,
+      firstSessionRowMs: firstSessionRowMs,
+      sessionRows: document.querySelectorAll('[class*="_sessionRow"]').length,
+      mobileFitInjected: document.querySelector('style[data-plugin-css="mobile-fit/css"]') !== null,
+      slowResources: resources
+    }, null, 1)
+  }
+  var btn = document.createElement('button')
+  btn.textContent = '\u590d\u5236\u8bca\u65ad\u65e5\u5fd7'
+  btn.style.cssText = 'position:fixed;right:10px;bottom:100px;z-index:2147483000;padding:8px 12px;border:none;border-radius:8px;background:#4176E6;color:#fff;font-size:13px;font-family:sans-serif;'
+  btn.addEventListener('click', function () {
+    var text = collect()
+    var done = function () { btn.textContent = '\u5df2\u590d\u5236 \u2713'; setTimeout(function () { btn.textContent = '\u590d\u5236\u8bca\u65ad\u65e5\u5fd7' }, 2500) }
+    var fallback = function () { window.prompt('\u8bf7\u957f\u6309\u9009\u62e9\u590d\u5236', text) }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback)
+    } else {
+      var ta = document.createElement('textarea')
+      ta.value = text
+      document.body.appendChild(ta)
+      ta.select()
+      try { document.execCommand('copy'); done() } catch (e) { fallback() }
+      ta.remove()
+    }
+  })
+  function mount() { if (!btn.parentNode) (document.body || document.documentElement).appendChild(btn) }
+  if (document.body) mount()
+  document.addEventListener('DOMContentLoaded', mount)
+  setTimeout(mount, 4000)
+})();
+</script>`
+
 function rewriteHtml(body) {
   let html = body
   if (!html.includes('window.__DSH_PROXY__')) {
     html = html.replace('</head>', `${PROXY_FLAG_SCRIPT}</head>`)
+  }
+  if (DIAG_ENABLED && !html.includes('__DSH_DIAG__')) {
+    html = html.replace('</head>', `${DIAG_SCRIPT}</head>`)
   }
   const markerAt = html.indexOf('__DSH_BOOT__')
   if (markerAt < 0) return html
