@@ -2,33 +2,41 @@ package dev.dsh.remote;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
+import android.net.ConnectivityManager.NetworkCallback;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
+import android.webkit.JavascriptInterface;
 import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -52,6 +60,7 @@ import java.net.URISyntaxException;
 public final class MainActivity extends Activity {
     private static final String PREFS = "dsh-remote";
     private static final String KEY_URL = "url";
+    private static final String KEY_KEEP_AWAKE = "keep-awake";
     private static final String TAILSCALE_PACKAGE = "com.tailscale.ipn";
     private static final int REQUEST_FILE_CHOOSER = 1001;
 
@@ -61,6 +70,19 @@ public final class MainActivity extends Activity {
     private View vpnBanner;
     private String baseOrigin; // scheme://host[:port] of the configured entry
     private ValueCallback<Uri[]> fileChooserCallback;
+    private NetworkCallback vpnCallback;
+
+    /**
+     * JS bridge exposed to the page as window.DshShell. Only benign actions:
+     * the mobile-fit gear button calls openSettings(). Nothing sensitive is
+     * reachable from page scripts.
+     */
+    private final class ShellBridge {
+        @JavascriptInterface
+        public void openSettings() {
+            runOnUiThread(() -> showSettings());
+        }
+    }
 
     private final WebViewClient client = new WebViewClient() {
         @Override
@@ -124,12 +146,14 @@ public final class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        applyKeepAwake(prefs.getBoolean(KEY_KEEP_AWAKE, false));
         String url = prefs.getString(KEY_URL, null);
         if (url == null || url.trim().isEmpty()) {
             showSetup();
         } else {
             showWeb(url);
         }
+        watchVpn();
     }
 
     // ── First-run setup ──────────────────────────────────────────────────
@@ -202,6 +226,7 @@ public final class MainActivity extends Activity {
         web.setWebViewClient(client);
         web.setWebChromeClient(chrome);
         web.setDownloadListener(downloadListener);
+        web.addJavascriptInterface(new ShellBridge(), "DshShell"); // mobile-fit gear
         if (BuildConfig.DEBUG) {
             WebView.setWebContentsDebuggingEnabled(true); // chrome://inspect
         }
@@ -224,6 +249,96 @@ public final class MainActivity extends Activity {
         DownloadManager manager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
         if (manager != null) manager.enqueue(request);
     };
+
+    // ── Settings (opened from the mobile-fit gear via the DshShell bridge) ─
+    private void showSettings() {
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        String current = prefs.getString(KEY_URL, "");
+
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(20);
+        form.setPadding(pad, pad, pad, pad);
+        scroll.addView(form);
+
+        TextView urlLabel = new TextView(this);
+        urlLabel.setText(R.string.settings_url);
+        form.addView(urlLabel);
+
+        EditText urlInput = new EditText(this);
+        urlInput.setSingleLine(true);
+        urlInput.setText(current);
+        form.addView(urlInput);
+
+        Button save = new Button(this);
+        save.setText(R.string.settings_save);
+        save.setOnClickListener(v -> {
+            String url = normalizeUrl(urlInput.getText().toString().trim());
+            if (url == null) {
+                Toast.makeText(this, R.string.setup_url_invalid, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            prefs.edit().putString(KEY_URL, url).apply();
+            if (web != null && webRoot != null) {
+                baseOrigin = originOf(url);
+                errorView = null;
+                setContentView(webRoot);
+                refreshVpnBanner(webRoot);
+                web.loadUrl(url);
+            } else {
+                showWeb(url);
+            }
+        });
+        form.addView(save);
+
+        Button clear = new Button(this);
+        clear.setText(R.string.settings_clear);
+        clear.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setMessage(R.string.settings_clear_confirm)
+                .setPositiveButton(R.string.settings_clear_yes, (d, w) -> clearWebData())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show());
+        form.addView(clear);
+
+        Switch keepAwake = new Switch(this);
+        keepAwake.setText(R.string.settings_keep_awake);
+        keepAwake.setChecked(prefs.getBoolean(KEY_KEEP_AWAKE, false));
+        keepAwake.setOnCheckedChangeListener((b, checked) -> {
+            prefs.edit().putBoolean(KEY_KEEP_AWAKE, checked).apply();
+            applyKeepAwake(checked);
+        });
+        form.addView(keepAwake);
+
+        TextView about = new TextView(this);
+        about.setText(getString(R.string.settings_about, BuildConfig.VERSION_NAME));
+        about.setTextSize(12);
+        about.setPadding(0, dp(16), 0, 0);
+        form.addView(about);
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.settings_title)
+                .setView(scroll)
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void clearWebData() {
+        if (web == null) return;
+        web.clearCache(true);
+        WebStorage.getInstance().deleteAllData();
+        CookieManager.getInstance().removeAllCookies(null);
+        String url = getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_URL, null);
+        if (url != null) web.loadUrl(url);
+    }
+
+    private void applyKeepAwake(boolean on) {
+        if (on) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+    }
 
     // ── VPN (Tailscale) guidance ─────────────────────────────────────────
     private View buildVpnBanner() {
@@ -262,6 +377,27 @@ public final class MainActivity extends Activity {
             if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return true;
         }
         return false;
+    }
+
+    /** Keep the guidance banner live while the VPN toggles. */
+    private void watchVpn() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return;
+        NetworkRequest request = new NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
+                .build();
+        vpnCallback = new NetworkCallback() {
+            @Override
+            public void onAvailable(Network network) {
+                runOnUiThread(() -> refreshVpnBanner(webRoot));
+            }
+
+            @Override
+            public void onLost(Network network) {
+                runOnUiThread(() -> refreshVpnBanner(webRoot));
+            }
+        };
+        cm.registerNetworkCallback(request, vpnCallback);
     }
 
     private void openTailscale() {
@@ -399,6 +535,11 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (vpnCallback != null) {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm != null) cm.unregisterNetworkCallback(vpnCallback);
+            vpnCallback = null;
+        }
         if (web != null) {
             web.destroy();
             web = null;

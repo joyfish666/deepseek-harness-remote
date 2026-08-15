@@ -63,6 +63,9 @@ window.__ModuleLoader__.load({
       "    color: var(--dsw-alias-label-secondary, #666) !important;",
       "    font-size: 18px !important;",
       "  }",
+      // The native-shell gear (mobile-fit-gear) floats under the burger; the
+      // open drawer's scrim covers the page, so the gear must go too.
+      "  body[data-mobile-fit-open] #mobile-fit-gear { display: none !important; }",
       // The floating menu control would cover the session title; shift the
       // conversation header right on phones.
       "  [data-slot=\"conversation.session.header\"] [class$=\"_header\"] { padding-left: 56px !important; }",
@@ -177,6 +180,7 @@ window.__ModuleLoader__.load({
     if (typeof document !== "undefined" && typeof window !== "undefined") {
       var BURGER_ID = "mobile-fit-burger";
       var SCRIM_ID = "mobile-fit-scrim";
+      var SHELL_GEAR_ID = "mobile-fit-gear";
       var mq = window.matchMedia("(max-width: 820px)");
       var burger = null;
       var scrim = null;
@@ -410,6 +414,43 @@ window.__ModuleLoader__.load({
         if (banner !== null && banner.textContent !== text) banner.textContent = text
       }
 
+      // ── Native shell bridge (dsh-remote APK) ───────────────────────────
+      // When hosted in the Android shell, window.DshShell exposes native
+      // actions (currently openSettings). Add a gear button below the burger
+      // that calls it; plain browsers have no bridge and see no gear.
+      function ensureShellGear() {
+        if (typeof window.DshShell === "undefined" || window.DshShell === null) return
+        if (!mq.matches) return
+        if (document.getElementById(SHELL_GEAR_ID) !== null) return
+        var gear = document.createElement("button");
+        gear.id = SHELL_GEAR_ID;
+        gear.setAttribute("aria-label", "settings");
+        gear.textContent = "\u2699";
+        gear.style.cssText = [
+          "position:fixed",
+          "top:calc(64px + env(safe-area-inset-top, 0px))",
+          "left:10px",
+          "z-index:200",
+          "width:44px",
+          "height:44px",
+          "border:none",
+          "border-radius:12px",
+          "background:var(--dsw-alias-button-floating-fill, rgba(128,128,128,0.2))",
+          "color:var(--dsw-alias-label-primary, #333)",
+          "font-size:18px",
+          "line-height:1",
+          "cursor:pointer",
+          "box-shadow:0 1px 6px rgba(0,0,0,0.25)",
+          "display:flex",
+          "align-items:center",
+          "justify-content:center"
+        ].join(";");
+        gear.addEventListener("click", function () {
+          try { window.DshShell.openSettings(); } catch (error) { /* bridge went away */ }
+        });
+        document.body.appendChild(gear);
+      }
+
       function ensureElements() {
         if (!mq.matches) { closeDrawer(); if (burger) { burger.remove(); burger = null; } return; }
         expandSidebarForMobile(0)
@@ -448,6 +489,7 @@ window.__ModuleLoader__.load({
           });
           document.body.appendChild(burger);
         }
+        ensureShellGear();
       }
 
       // The React tree may replace body children; re-assert our fixed layer.

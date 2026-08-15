@@ -17,4 +17,13 @@
     <string name="error_reset">重新设置地址</string>
 
     <string name="no_file_picker">此设备没有可用的文件选择器</string>
+
+    <string name="settings_title">设置</string>
+    <string name="settings_url">访问地址</string>
+    <string name="settings_save">保存并重载</string>
+    <string name="settings_clear">清除缓存与站点数据</string>
+    <string name="settings_clear_confirm">将清除登录状态、缓存与本地记忆（内测声明会重新提示一次）。确定继续？</string>
+    <string name="settings_clear_yes">清除</string>
+    <string name="settings_keep_awake">保持屏幕常亮</string>
+    <string name="settings_about">DSH Remote v%1$s — dsh Web 界面的安卓外壳（WebView 容器，不改 dsh 源码）。注意：配置/凭据类页面（模型、插件、权限、Agent 预设等）仅限电脑本机回环访问（远程 HTTP 403），属 dsh 上游安全设计。</string>
 </resources>
