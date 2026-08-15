@@ -79,3 +79,10 @@
 | P30 | `gradlew` 下载发行包 .part 文件 0 字节停滞，而 curl/.NET 均可达同一 URL | wrapper 的 Java HTTP 栈与镜像 CDN 的连接问题（代理/重定向差异） | 预置 wrapper 缓存：把 zip 解压到 `~/.gradle/wrapper/dists/<名称>/<hash>/` 并创建 `.ok` 文件（wrapper 跳过下载）；本机构建直接用本地解压的 gradle |
 | P31 | `gradle wrapper` 报 "repository 'maven' was added by initialization script" | 本机全局 `~/.gradle/init.gradle`（阿里云镜像）往项目加仓库，与 settings 里 `repositoriesMode = FAIL_ON_PROJECT_REPOS` 冲突 | 该项目去掉 `FAIL_ON_PROJECT_REPOS`（init 脚本镜像对国内网络有益）；不要改全局 init.gradle |
 | P32 | PowerShell 执行 `gradlew.bat` 返回 exit code 1，但日志明明 "BUILD SUCCESSFUL" | gradlew.bat 把 javac 的 stderr（"注: ...使用或覆盖了已过时的 API"）当错误输出，PowerShell 把原生程序 stderr 判定为 NativeCommandError | 判断成败以输出里的 `BUILD SUCCESSFUL/FAILED` 为准，不要看 exit code；javac 的过时 API 提示用 `-Xlint:deprecation` 另行处理 |
+
+## 八、远程配置反代（remote-config proxy）
+
+| # | 坑 | 根源 | 对策 |
+|---|---|---|---|
+| P33 | 反代改了 Host 但配置接口仍 403 | Chrome 对同源 POST/fetch **也带 Origin 头**（与页面同源），Host 改成回环后 `Origin` 与 `Host` 不匹配，被 Origin fence 拒绝（`api-request-trust.ts`：Origin 存在时必须与 Host 完全一致） | 反代必须**删除 Origin 头**（不是改写）——Origin 缺失时围栏直接放行 |
+| P34 | 反代后页面正常，但会话事件流（WS）不更新 | `http.request` 默认不处理 Upgrade；转发升级请求时必须显式保留 `Connection: Upgrade` 与 `Upgrade: websocket` 头（node 会剥离 hop-by-hop），101 响应要手写并用 `res.rawHeaders` 原样中继（保 `Sec-WebSocket-Accept` 等），再双向 `pipe` | 见 `scripts/remote-config-proxy.mjs` 的 `server.on('upgrade')`：`agent: false` + 显式头 + 手写 101 + 双 socket `pipe` + 双向 error 兜底 |
