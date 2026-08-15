@@ -66,6 +66,7 @@
 | 网关页面 401 / 连不上（M3） | 检查 `remote-gateway/.env` 的 `GATEWAY_PASSWORD` 与手机输入是否一致；`Get-ScheduledTask -TaskName dsh-gateway` 查看任务状态；`schtasks /run /tn dsh-gateway` 立即启动 |
 | 网关日志（M3） | `Get-Content $HOME\.dsh\logs\gateway.log -Tail 50`；审计：`gateway-audit.log` |
 | 页面显示 "Failed to load plugins"（M2） | mobile-fit 插件未生效：确认 junction 存在（`Get-Item "$HOME\.dsh\profiles\web\node_modules\mobile-fit"`）、patch 行正确，然后**重启 dsh**（`schtasks /end /tn dsh-web`） |
+| 开机出现 cmd.exe 窗口（旧版自启） | ⚠️ **2026-08-15 起已修复**：新版 `start-dsh.ps1` 直接以 `node` 运行 dsh，不再经过 npx 的 cmd.exe 包装，**重启电脑后不再出现**。**当前正在运行的旧窗口不要关闭**（关闭会终止 dsh web → M1 断连）；电脑重启后自动消失。另有一个 `cmd.exe /C AMDRSServ.exe` 窗口是 AMD 显卡驱动，与项目无关，可关闭 |
 
 ## 路线图
 

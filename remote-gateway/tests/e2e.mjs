@@ -1,4 +1,4 @@
-// M2 端到端验收脚本：真实调用 remote-gateway（含 SSE 事件流）。
+// M3（自建远程网关）端到端验收脚本：真实调用 remote-gateway（含 SSE 事件流）。
 // 用法：node tests/e2e.mjs
 // 覆盖：认证（密码登录）、健康、SSE 流、建会话、发消息（实时事件）、取消、历史、工作区文件浏览。
 import { join, dirname } from 'node:path'

@@ -78,6 +78,12 @@ https://<你的机器名>.<tailnet>.ts.net/
 > ⚠️ 用**域名**不要用 IP：Tailscale Serve 只为域名签发 TLS 证书。
 > 可选验证：`curl -s -o NUL -w "%{http_code}" -H "Host: <你的域名>" http://127.0.0.1:3080/api/session.list` 返回 `404` 即围栏放行（404 是路径不合法，正常）；陌生 Host 应返回 `403`。
 
+> ⚠️ **关于开机出现的 cmd.exe 窗口**：旧版自启脚本通过 `npx`（.cmd 批处理）启动
+> dsh，会留下一个 `cmd.exe /d /s /c dsh web` 窗口——**不要关闭它**（关闭会终止
+> dsh web，M1 断连）。2026-08-15 起新版脚本改为直接 `node` 运行，**重启电脑后该
+> 窗口不再出现**。若看到另一个 `cmd.exe /C AMDRSServ.exe`，那是 AMD 显卡驱动，
+> 与项目无关，可关闭。
+
 ## 3. 开机自启
 
 Tailscale 是系统服务、serve 配置持久保存，重启电脑自动恢复；**dsh 本体不会自启**，需注册计划任务：

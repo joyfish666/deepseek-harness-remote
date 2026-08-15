@@ -5,8 +5,13 @@
 #
 # Behavior:
 #   1. If port 3080 is already in use (dsh is running), exit immediately to avoid a second instance.
-#   2. Otherwise start `npx @deepseek-ai/dsh web`; logs go to ~/.dsh/logs/dsh-web.log.
+#   2. Otherwise start the dsh web server; logs go to ~/.dsh/logs/dsh-web.log.
 #   3. If dsh exits abnormally, wait 10 seconds and restart it (watchdog loop).
+#
+# Window-less startup (2026-08-15): npx is a .cmd batch and running it spawns a
+# visible cmd.exe window that must stay open (closing it kills dsh web). Instead
+# we resolve the installed dsh bin.js and run it with node.exe directly - no
+# cmd.exe wrapper, no visible shell window. Falls back to npx when resolution fails.
 #
 # NOTE: keep this file ASCII-only so it parses correctly under Windows PowerShell 5.1
 # regardless of the system codepage (UTF-8-without-BOM files are read as ANSI there).
@@ -26,6 +31,17 @@ function Write-Log([string]$msg) {
   "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $msg" | Out-File -Append -Encoding utf8 -FilePath $logFile
 }
 
+# Resolve the installed dsh entry (node_modules/@deepseek-ai/dsh/lib/bin.js)
+# from the dsh.ps1 shim on PATH; returns '' when not resolvable.
+function Resolve-DshBinJs {
+  $shim = Get-Command dsh -CommandType ExternalScript -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $shim) { return '' }
+  $binDir = Split-Path (Split-Path $shim.Source -Parent) -Parent   # ...\.bin -> node_modules
+  $candidate = Join-Path $binDir '@deepseek-ai\dsh\lib\bin.js'
+  if (Test-Path $candidate) { return $candidate }
+  return ''
+}
+
 Set-Location $WorkDir
 while ($true) {
   $busy = Get-NetTCPConnection -LocalPort 3080 -State Listen -ErrorAction SilentlyContinue
@@ -33,8 +49,14 @@ while ($true) {
     Write-Log 'port 3080 already in use (dsh already running) - exiting'
     exit 0
   }
-  Write-Log "starting dsh web (workdir: $WorkDir)"
-  & npx --yes @deepseek-ai/dsh web *>> $logFile
+  $binJs = Resolve-DshBinJs
+  if ($binJs) {
+    Write-Log "starting dsh web (workdir: $WorkDir, bin: $binJs)"
+    & node "$binJs" web *>> $logFile
+  } else {
+    Write-Log "starting dsh web via npx (workdir: $WorkDir)"
+    & npx --yes @deepseek-ai/dsh web *>> $logFile
+  }
   $code = $LASTEXITCODE
   Write-Log "dsh exited with code $code - restarting in 10s"
   Start-Sleep -Seconds 10
