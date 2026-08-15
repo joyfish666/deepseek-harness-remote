@@ -110,16 +110,34 @@ function check(name, cond) {
   check("dock tap (typing intent) is kept", t.blurred !== true);
 }
 
-// 4. Scripted refocus within the 600ms grace (send-button keep-focus): kept.
+// 3b. Tap DIRECTLY on the textarea whose dock ancestor lookup fails
+// (slot wrapper re-rendered / re-parented): still typing intent.
+{
+  const ta = new FakeTextarea();
+  ta.matchesResult = true;
+  ta.closestResult = null; // not inside [data-slot=...composer.dock]
+  firePointerdown(ta);
+  const { target: t } = fireFocusin(composerTarget());
+  check("textarea self-tap survives dock mismatch", t.blurred !== true);
+}
+
+// 4. Scripted refocus within the 1000ms grace (send-button keep-focus): kept.
 {
   firePointerdown(composerTarget({ inDock: true }));
   const { target: t } = fireFocusin(composerTarget());
-  check("dock-gesture refocus within 600ms is kept", t.blurred !== true);
+  check("dock-gesture refocus within 1000ms is kept", t.blurred !== true);
 }
 
-// 5. Focus with a STALE dock pointer (>600ms): refused again.
+// 4b. Dock pointer just inside the window (<1000ms) still rescues.
 {
-  fakeNow += 1000; // the dock touch above is now stale
+  fakeNow += 800; // 800ms after the touch above — still within grace
+  const { target: t } = fireFocusin(composerTarget());
+  check("dock pointer at 800ms still rescues focus", t.blurred !== true);
+}
+
+// 5. Focus with a STALE dock pointer (>1000ms): refused again.
+{
+  fakeNow += 1500; // the dock touch above is now stale
   const { target: t } = fireFocusin(composerTarget());
   check("stale dock pointer does not rescue focus", t.blurred === true);
 }

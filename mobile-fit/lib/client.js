@@ -345,17 +345,23 @@ window.__ModuleLoader__.load({
       // here. The reliable signal is the pointer that precedes the focus: a
       // pointerdown inside the composer dock (the box or its buttons) is
       // typing intent; anything else (session row, drawer, onboarding
-      // dialog) is not. Focus within 600ms of a dock pointerdown is allowed
-      // — a real tap focuses in that window, and the send button's
-      // keep-focus refocus rides a mousedown inside the dock — while any
-      // other composer focus is refused. Chrome cancels focusin outright via
-      // preventDefault (no keyboard flash); engines where focusin is not
-      // cancelable get the blur() fallback.
+      // dialog) is not. The composer textarea itself counts regardless of
+      // dock ancestry: if the slot wrapper ever re-renders around it, a
+      // real tap must not be mistaken for script focus. Focus within 1s of
+      // such a pointerdown is allowed — a real tap focuses in that window,
+      // and the send button's keep-focus refocus rides a mousedown inside
+      // the dock — while any other composer focus is refused. Chrome
+      // cancels focusin outright via preventDefault (no keyboard flash);
+      // engines where focusin is not cancelable get the blur() fallback.
       var lastDockPointerAt = 0
       function noteComposerPointer(event) {
         if (!mq.matches) return
         var target = event.target
         if (!(target instanceof Element)) return
+        if (target.matches('textarea[class$="_input"]')) {
+          lastDockPointerAt = Date.now()
+          return
+        }
         if (target.closest('[data-slot="conversation.composer.dock"]') !== null) {
           lastDockPointerAt = Date.now()
         }
@@ -365,7 +371,7 @@ window.__ModuleLoader__.load({
         var target = event.target
         if (!(target instanceof HTMLTextAreaElement)) return
         if (!target.matches('textarea[class$="_input"]')) return
-        if (Date.now() - lastDockPointerAt < 600) return
+        if (Date.now() - lastDockPointerAt < 1000) return
         event.preventDefault()
         target.blur()
       }
