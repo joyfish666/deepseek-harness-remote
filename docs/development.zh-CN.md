@@ -197,12 +197,6 @@ node scripts/measure-latency.mjs            # 直连 vs 反代逐环节时延（
 
 ## 6. 贡献指南
 
-欢迎任何形式的贡献！无论提出问题（issues）还是提交代码（pull requests），
-即使再小的毛病、再小的改动都非常欢迎。
-
-开始开发之前请先阅读：
-
-- [pitfalls.zh-CN.md](pitfalls.zh-CN.md) —— 所有已知坑的根源与对策；
-- 本文档 —— 项目结构与各组件原理；
-- 仓库规矩：**每踩一个新坑，立刻追加记录到 pitfalls**；文档保持中英双语；
-  脚本若交付 Windows PowerShell 5.1 需纯 ASCII（见 pitfalls P1）。
+贡献指南已移至根目录 [README.zh-CN.md](../README.zh-CN.md)（贡献区）。
+本仓库开发规矩：**每踩一个新坑，立刻追加记录到 pitfalls**；文档保持中英双语；
+脚本若交付 Windows PowerShell 5.1 需纯 ASCII（见 pitfalls P1）。

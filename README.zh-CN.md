@@ -18,9 +18,25 @@
 
 ## 界面预览
 
-| 电脑网页端 | 手机 APK |
-| :---: | :---: |
-| ![电脑网页端](assets/web.jpg) | ![手机 APK](assets/apk.jpg) |
+<p align="center">
+  <img src="assets/web.jpg" alt="手机网页端" width="260"/>
+  &nbsp;&nbsp;
+  <img src="assets/apk.jpg" alt="手机 APK" width="260"/>
+  <br/>
+  <sub>左：手机网页端（mobile-fit）&nbsp;&nbsp;右：手机 APK</sub>
+</p>
+
+## 实现原理与项目结构（简述）
+
+**纯叠加层**：不改任何 dsh 源码，只做外围适配，上游更新后同步适配。三个组件：
+
+| 组件 | 一句话原理 |
+|---|---|
+| **mobile-fit**（`mobile-fit/`） | 通过 dsh 官方 client 插件 seam 注入移动端 CSS 与交互（抽屉、输入、设置全屏化等），窄屏自动生效 |
+| **APK 壳**（`apk/`） | 零依赖 WebView 容器：地址 + Token 一屏配置，加载与手机浏览器完全相同的入口 |
+| **remote-config 反代**（`scripts/remote-config-proxy.mjs`） | dsh 信任围栏只看 Host 头——反代改写成回环拼写并删 Origin，手机端即可改配置 |
+
+详细原理、工程结构与开发说明见 [docs/development.zh-CN.md](docs/development.zh-CN.md)。
 
 ## 快速开始（从 0 到远程控制）
 
@@ -48,6 +64,20 @@
 - 配置/凭据等特权接口默认钉在本机回环（上游安全设计）；部署 remote-config 反代
   可在手机端解锁（自担风险，见 tutorial 第 4 节）；
 - **禁止** `tailscale funnel`（会把服务暴露到公网）。
+
+## 贡献指南
+
+欢迎任何形式的贡献！无论是提出问题（[issues](https://github.com/joyfish666/deepseek-harness-remote/issues)）
+还是提交代码（[pull requests](https://github.com/joyfish666/deepseek-harness-remote/pulls)），
+即使是再小的毛病、再小的改动，我们都非常欢迎。
+
+开始开发之前，请先阅读：
+
+- [docs/pitfalls.zh-CN.md](docs/pitfalls.zh-CN.md) —— 所有已知坑的根源与对策；
+- [docs/development.zh-CN.md](docs/development.zh-CN.md) —— 项目结构与各组件原理。
+
+仓库规矩：**每踩一个新坑，立刻追加记录到 pitfalls**；文档保持中英双语；
+脚本若交付 Windows PowerShell 5.1 需纯 ASCII（见 pitfalls P1）。
 
 ## 许可证
 

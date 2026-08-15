@@ -13,9 +13,26 @@
 
 ## Screenshots
 
-| Desktop web | Mobile APK |
-| :---: | :---: |
-| ![Desktop web](assets/web.jpg) | ![Mobile APK](assets/apk.jpg) |
+<p align="center">
+  <img src="assets/web.jpg" alt="Mobile web" width="260"/>
+  &nbsp;&nbsp;
+  <img src="assets/apk.jpg" alt="Mobile APK" width="260"/>
+  <br/>
+  <sub>Left: mobile web (mobile-fit)&nbsp;&nbsp;Right: mobile APK</sub>
+</p>
+
+## How it works & structure (brief)
+
+**Pure overlay**: no dsh source is touched; we adapt when upstream changes.
+Three components:
+
+| Component | One-line principle |
+|---|---|
+| **mobile-fit** (`mobile-fit/`) | Injects mobile CSS + interaction through the official client-plugin seam (drawer, input, full-screen settings) — active on narrow screens only |
+| **APK shell** (`apk/`) | Zero-dependency WebView container: URL + Token on one setup screen, loads the same entry as the phone browser |
+| **remote-config proxy** (`scripts/remote-config-proxy.mjs`) | The dsh trust fence decides purely from the Host header — the proxy rewrites it to the loopback spelling and deletes Origin, unlocking configuration on the phone |
+
+Full internals and engineering details: [docs/development.md](docs/development.md).
 
 ## Quick start (from zero to remote control)
 
@@ -41,6 +58,21 @@ Every step ships with full commands, manual-vs-autostart choices, the token swit
 - The dsh `/api` trust fence (`trustedHosts`) prevents DNS rebinding;
 - Configuration/credential APIs stay pinned to loopback by default (upstream security design); deploying the remote-config proxy unlocks them on the phone (at your own risk — tutorial section 4);
 - **Never** use `tailscale funnel` (it would expose the service to the public internet).
+
+## Contributing
+
+Contributions are welcome! Feel free to open an [issue](https://github.com/joyfish666/deepseek-harness-remote/issues)
+or submit a [pull request](https://github.com/joyfish666/deepseek-harness-remote/pulls) —
+even the smallest problem report or fix is appreciated.
+
+Before you start developing, please read:
+
+- [docs/pitfalls.md](docs/pitfalls.md) — root causes and fixes for every known issue;
+- [docs/development.md](docs/development.md) — project structure and component internals.
+
+House rules: **record every new pitfall in pitfalls immediately**; keep docs
+bilingual; scripts delivered to Windows PowerShell 5.1 must be pure ASCII
+(pitfalls P1).
 
 ## License
 

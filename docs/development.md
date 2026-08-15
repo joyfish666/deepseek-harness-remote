@@ -188,11 +188,7 @@ selectors, the manifest reorder and the proxy rewrites.
 
 ## 6. Contributing
 
-Contributions are welcome — issues and pull requests, even the smallest fix.
-Before developing, read:
-
-- [pitfalls.md](pitfalls.md) — root causes and fixes for every known issue;
-- this file — structure and component internals;
-- house rules: **record every new pitfall in pitfalls immediately**; keep
-  docs bilingual; scripts delivered to Windows PowerShell 5.1 must be pure
-  ASCII (pitfalls P1).
+The contributing guide lives in the root [README.md](../README.md)
+(Contributing section). House rules: **record every new pitfall in pitfalls
+immediately**; keep docs bilingual; scripts delivered to Windows PowerShell
+5.1 must be pure ASCII (pitfalls P1).
