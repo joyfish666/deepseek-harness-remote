@@ -101,6 +101,18 @@ log in once); the tradeoff is strength — the tailnet device identity remains
 the primary boundary, the token is a second factor. At least avoid
 common/weak passphrases.
 
+**Token in the APK**: the dsh-remote APK's setup/settings screen has its own
+Token field; on connect it writes the token into the WebView cookie
+(`CookieManager.setCookie`), so the proxy login page never appears inside
+the WebView — enter it once per device (browser and APK separately).
+
+**Load speedup**: the proxy adds
+`Cache-Control: public, max-age=31536000, immutable` to `?rev=` bundle
+responses. dsh upstream serves bundles as `no-cache` with no ETag, so on a
+slow phone link every load re-downloads the whole bundle set (seconds); the
+rev is a content hash, so the URL changes when the content changes and
+immutable caching is safe.
+
 ## Autostart (optional)
 
 Follows the existing zero-window pattern (see tutorial section 4):

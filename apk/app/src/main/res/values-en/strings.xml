@@ -2,8 +2,11 @@
 <resources>
     <string name="app_name">DSH Remote</string>
 
-    <string name="setup_hint">Enter the access address of dsh on your computer (Tailscale domain, e.g. https://my-machine.my-tailnet.ts.net/). Keep the Tailscale app connected (VPN icon) on this phone.</string>
+    <string name="setup_hint">Enter the dsh access address on your computer and the remote-config token (when the proxy is deployed). Keep the Tailscale app connected (VPN icon) on this phone.</string>
     <string name="setup_url_hint">https://your-machine.your-tailnet.ts.net</string>
+    <string name="setup_url_label">Access URL</string>
+    <string name="setup_token_label">Token (optional; required when the proxy has one)</string>
+    <string name="setup_token_hint">DSH_PROXY_TOKEN</string>
     <string name="setup_connect">Connect</string>
     <string name="setup_open_tailscale">Open Tailscale</string>
     <string name="setup_url_invalid">Invalid address: enter a domain (e.g. your-machine.your-tailnet.ts.net)</string>
@@ -20,6 +23,7 @@
 
     <string name="settings_title">Settings</string>
     <string name="settings_url">Access URL</string>
+    <string name="settings_token">Token (when the proxy has one; skips the WebView login page)</string>
     <string name="settings_save">Save &amp; reload</string>
     <string name="settings_clear">Clear cache &amp; site data</string>
     <string name="settings_clear_confirm">This clears login state, cache and local memory (the internal-testing notice will reappear once). Continue?</string>

@@ -2,8 +2,11 @@
 <resources>
     <string name="app_name">DSH Remote</string>
 
-    <string name="setup_hint">输入电脑端 dsh 的访问地址（Tailscale 域名，如 https://我的机器名.my-tailnet.ts.net/）。手机需保持 Tailscale App 已连接（VPN 图标）。</string>
+    <string name="setup_hint">输入电脑端 dsh 的访问地址与远程配置 Token（如已部署反代）。手机需保持 Tailscale App 已连接（VPN 图标）。</string>
     <string name="setup_url_hint">https://your-machine.your-tailnet.ts.net</string>
+    <string name="setup_url_label">访问地址 / URL</string>
+    <string name="setup_token_label">Token（可选，反代开启时必填）</string>
+    <string name="setup_token_hint">DSH_PROXY_TOKEN</string>
     <string name="setup_connect">连接</string>
     <string name="setup_open_tailscale">打开 Tailscale</string>
     <string name="setup_url_invalid">地址无效：请输入域名地址（如 your-machine.your-tailnet.ts.net）</string>
@@ -20,6 +23,7 @@
 
     <string name="settings_title">设置</string>
     <string name="settings_url">访问地址</string>
+    <string name="settings_token">Token（反代开启时填写，免 WebView 登录页）</string>
     <string name="settings_save">保存并重载</string>
     <string name="settings_clear">清除缓存与站点数据</string>
     <string name="settings_clear_confirm">将清除登录状态、缓存与本地记忆（内测声明会重新提示一次）。确定继续？</string>

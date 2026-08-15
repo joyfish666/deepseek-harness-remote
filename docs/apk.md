@@ -14,16 +14,21 @@
 
 ## 2. First run
 
-1. Open the app → enter the Tailscale address of the machine running dsh
-   (`https://<machine>.<tailnet>.ts.net/`, the `https://` prefix is optional) → Connect;
-2. If the phone's Tailscale is not connected, a yellow banner appears at the
-   top; tap "Open" to jump to the Tailscale app. The banner disappears once
-   connected;
+1. Open the app → fill in two fields on one screen:
+   - **Access URL**: the Tailscale address of the machine running dsh
+     (`https://<machine>.<tailnet>.ts.net/`, the `https://` prefix is optional);
+   - **Token** (optional): required when the remote-config proxy has
+     `DSH_PROXY_TOKEN` enabled (`docs/remote-config.md`). When filled, the
+     WebView carries the cookie automatically and the proxy login page never
+     appears;
+2. Tap Connect → if the phone's Tailscale is not connected, a yellow banner
+   appears at the top; tap "Open" to jump to the Tailscale app. The banner
+   disappears once connected;
 3. The UI is identical to the phone browser (mobile-fit fully applies).
    **Note: configuration/credential pages (models, plugins, permissions,
    agent presets, etc.) return 403 remotely by default** — dsh upstream
    security design; deploying the remote-config proxy unlocks them on the
-   phone (`docs/remote-config.md`).
+   phone.
 
 ## 3. Daily use
 
@@ -31,7 +36,7 @@
 |---|---|
 | Open a session | ☰ drawer, tap the session (no keyboard pop-up; tap the input box to focus) |
 | Send a message | Arrow button bottom-right (Enter inserts a newline) |
-| Settings (URL/data/keep-awake) | ⚙ gear below ☰ (APK only) |
+| Settings (URL/token/data/keep-awake) | ⚙ gear below ☰ (APK only) |
 | Upload files | Same as the web (system file picker) |
 | Download files | Saved to the system Downloads folder (with notification) |
 | External links | Open in the system browser (the shell stays on the dsh domain) |

@@ -8,6 +8,8 @@ import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.ConnectivityManager;
 import android.net.ConnectivityManager.NetworkCallback;
 import android.net.Network;
@@ -16,6 +18,7 @@ import android.net.NetworkRequest;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,6 +37,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
@@ -60,6 +64,7 @@ import java.net.URISyntaxException;
 public final class MainActivity extends Activity {
     private static final String PREFS = "dsh-remote";
     private static final String KEY_URL = "url";
+    private static final String KEY_TOKEN = "token";
     private static final String KEY_KEEP_AWAKE = "keep-awake";
     private static final String TAILSCALE_PACKAGE = "com.tailscale.ipn";
     private static final int REQUEST_FILE_CHOOSER = 1001;
@@ -156,52 +161,151 @@ public final class MainActivity extends Activity {
         watchVpn();
     }
 
-    // ── First-run setup ──────────────────────────────────────────────────
+    // ── First-run setup (dsh design style: dark card, brand mark, token) ─
+    private static final int C_BG = 0xFF151517;
+    private static final int C_CARD = 0xFF232324;
+    private static final int C_INPUT = 0xFF2C2C2E;
+    private static final int C_LABEL = 0xFFF9FAFB;
+    private static final int C_LABEL_2 = 0xFFCFD3D6;
+    private static final int C_LABEL_3 = 0xFFADAEB2;
+    private static final int C_BORDER = 0x1FFFFFFF;
+    private static final int C_BRAND = 0xFF4176E6;
+    private static final int C_BRAND_HOVER = 0xFF679EFE;
+
+    private GradientDrawable roundBg(int fill, int strokeColor, float radiusDp) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(fill);
+        d.setCornerRadius(radiusDp * getResources().getDisplayMetrics().density);
+        if (strokeColor != 0) d.setStroke(dp(1), strokeColor);
+        return d;
+    }
+
+    private TextView styledLabel(String text) {
+        TextView v = new TextView(this);
+        v.setText(text);
+        v.setTextSize(12);
+        v.setTextColor(C_LABEL_2);
+        v.setPadding(dp(4), 0, 0, dp(6));
+        return v;
+    }
+
+    private EditText styledInput(String hint, boolean secret) {
+        EditText v = new EditText(this);
+        v.setSingleLine(true);
+        v.setHint(hint);
+        v.setHintTextColor(C_LABEL_3);
+        v.setTextColor(C_LABEL);
+        v.setTextSize(14);
+        v.setPadding(dp(12), 0, dp(12), 0);
+        v.setHeight(dp(40));
+        v.setBackground(roundBg(C_INPUT, C_BORDER, 8));
+        if (secret) v.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        return v;
+    }
+
+    private Button primaryButton(String text) {
+        Button b = new Button(this);
+        b.setText(text);
+        b.setTextSize(14);
+        b.setAllCaps(false);
+        b.setTextColor(0xFFFFFFFF);
+        b.setHeight(dp(40));
+        b.setBackground(roundBg(C_BRAND, 0, 8));
+        return b;
+    }
+
+    private Button ghostButton(String text) {
+        Button b = new Button(this);
+        b.setText(text);
+        b.setTextSize(14);
+        b.setAllCaps(false);
+        b.setTextColor(C_LABEL_2);
+        b.setHeight(dp(40));
+        b.setBackground(roundBg(C_INPUT, C_BORDER, 8));
+        return b;
+    }
+
     private void showSetup() {
         setContentView(buildSetupView());
     }
 
     private View buildSetupView() {
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(C_BG);
+        scroll.setFillViewport(true);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         int pad = dp(24);
-        root.setPadding(pad, dp(48), pad, pad);
+        root.setPadding(pad, pad, pad, pad);
 
+        // Brand row: app icon + name, like the proxy login page.
+        LinearLayout brand = new LinearLayout(this);
+        brand.setOrientation(LinearLayout.HORIZONTAL);
+        brand.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        ImageView mark = new ImageView(this);
+        mark.setImageResource(R.mipmap.ic_launcher);
+        LinearLayout.LayoutParams markLp = new LinearLayout.LayoutParams(dp(32), dp(32));
+        mark.setLayoutParams(markLp);
+        brand.addView(mark);
         TextView title = new TextView(this);
         title.setText(R.string.app_name);
-        title.setTextSize(24);
-        root.addView(title);
+        title.setTextSize(15);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setTextColor(C_LABEL);
+        title.setPadding(dp(10), 0, 0, 0);
+        brand.addView(title);
+        root.addView(brand);
 
         TextView hint = new TextView(this);
         hint.setText(R.string.setup_hint);
-        hint.setTextSize(14);
-        hint.setPadding(0, dp(12), 0, dp(12));
+        hint.setTextSize(12);
+        hint.setTextColor(C_LABEL_3);
+        hint.setLineSpacing(0, 1.4f);
+        hint.setPadding(0, dp(10), 0, dp(16));
         root.addView(hint);
 
-        EditText input = new EditText(this);
-        input.setSingleLine(true);
-        input.setHint(R.string.setup_url_hint);
-        root.addView(input);
+        root.addView(styledLabel(getString(R.string.setup_url_label)));
+        EditText urlInput = styledInput(getString(R.string.setup_url_hint), false);
+        root.addView(urlInput);
 
-        Button connect = new Button(this);
-        connect.setText(R.string.setup_connect);
+        root.addView(styledLabel(getString(R.string.setup_token_label)));
+        EditText tokenInput = styledInput(getString(R.string.setup_token_hint), true);
+        tokenInput.setText(getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_TOKEN, ""));
+        root.addView(tokenInput);
+
+        Button connect = primaryButton(getString(R.string.setup_connect));
         connect.setOnClickListener(v -> {
-            String url = normalizeUrl(input.getText().toString().trim());
+            String url = normalizeUrl(urlInput.getText().toString().trim());
             if (url == null) {
                 Toast.makeText(this, R.string.setup_url_invalid, Toast.LENGTH_SHORT).show();
                 return;
             }
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(KEY_URL, url).apply();
+            String token = tokenInput.getText().toString().trim();
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putString(KEY_URL, url)
+                    .putString(KEY_TOKEN, token)
+                    .apply();
             showWeb(url);
         });
         root.addView(connect);
 
-        Button tailscale = new Button(this);
-        tailscale.setText(R.string.setup_open_tailscale);
+        Button tailscale = ghostButton(getString(R.string.setup_open_tailscale));
         tailscale.setOnClickListener(v -> openTailscale());
         root.addView(tailscale);
 
-        return root;
+        scroll.addView(root);
+        return scroll;
+    }
+
+    /** Pre-set the proxy token cookie so the WebView never sees /login. */
+    private void applyTokenCookie(String url) {
+        String token = getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_TOKEN, "");
+        if (token.isEmpty()) return;
+        String origin = originOf(url);
+        if (origin == null) return;
+        CookieManager.getInstance().setCookie(origin,
+                "dsh_remote_config_token=" + Uri.encode(token) + "; Path=/; Max-Age=31536000");
     }
 
     // ── Main web view ────────────────────────────────────────────────────
@@ -235,6 +339,7 @@ public final class MainActivity extends Activity {
 
         errorView = null;
         setContentView(webRoot);
+        applyTokenCookie(url); // pre-set the proxy token so /login never shows
         web.loadUrl(url);
         refreshVpnBanner(webRoot);
     }
@@ -271,6 +376,16 @@ public final class MainActivity extends Activity {
         urlInput.setText(current);
         form.addView(urlInput);
 
+        TextView tokenLabel = new TextView(this);
+        tokenLabel.setText(R.string.settings_token);
+        tokenLabel.setPadding(0, dp(12), 0, 0);
+        form.addView(tokenLabel);
+
+        EditText tokenInput = new EditText(this);
+        tokenInput.setSingleLine(true);
+        tokenInput.setText(prefs.getString(KEY_TOKEN, ""));
+        form.addView(tokenInput);
+
         Button save = new Button(this);
         save.setText(R.string.settings_save);
         save.setOnClickListener(v -> {
@@ -279,12 +394,16 @@ public final class MainActivity extends Activity {
                 Toast.makeText(this, R.string.setup_url_invalid, Toast.LENGTH_SHORT).show();
                 return;
             }
-            prefs.edit().putString(KEY_URL, url).apply();
+            prefs.edit()
+                    .putString(KEY_URL, url)
+                    .putString(KEY_TOKEN, tokenInput.getText().toString().trim())
+                    .apply();
             if (web != null && webRoot != null) {
                 baseOrigin = originOf(url);
                 errorView = null;
                 setContentView(webRoot);
                 refreshVpnBanner(webRoot);
+                applyTokenCookie(url);
                 web.loadUrl(url);
             } else {
                 showWeb(url);

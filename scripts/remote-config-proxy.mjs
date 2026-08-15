@@ -263,6 +263,16 @@ const server = http.createServer((req, res) => {
     headers: { ...forwardHeaders(req), host: targetHost },
   }, (upstream) => {
     const type = upstream.headers['content-type'] ?? ''
+    // dsh serves bundles with cache-control: no-cache and no validator
+    // (no ETag), so every page load re-downloads the full bundle set —
+    // seconds on a slow phone link. The rev query parameter is a content
+    // hash (stable per content, verified), so immutable caching is safe:
+    // the URL changes whenever the content changes.
+    const revQuery = req.url !== undefined && /[?&]rev=[0-9a-fA-F]+/.test(req.url)
+    let headers = upstream.headers
+    if (revQuery && (headers['cache-control'] ?? '') !== '') {
+      headers = { ...headers, 'cache-control': 'public, max-age=31536000, immutable' }
+    }
     // text/html responses are rewritten (proxy flag + boot manifest patch);
     // the body must be buffered for that, so drop the stale content-length.
     if (req.method === 'GET' && type.includes('text/html')
@@ -270,16 +280,18 @@ const server = http.createServer((req, res) => {
       const chunks = []
       upstream.on('data', (chunk) => { chunks.push(chunk) })
       upstream.on('end', () => {
-        const headers = { ...upstream.headers }
-        delete headers['content-length']
-        res.writeHead(upstream.statusCode ?? 502, headers)
+        const rewritten = { ...headers }
+        delete rewritten['content-length']
+        res.writeHead(upstream.statusCode ?? 502, rewritten)
         res.end(rewriteHtml(Buffer.concat(chunks).toString('utf8')))
+        log(`req ${req.method} ${req.url} -> ${upstream.statusCode ?? 502} (html, ${chunks.length} chunks)`)
       })
       upstream.on('error', () => { res.destroy() })
       return
     }
-    res.writeHead(upstream.statusCode ?? 502, upstream.headers)
+    res.writeHead(upstream.statusCode ?? 502, headers)
     upstream.pipe(res)
+    upstream.on('end', () => { log(`req ${req.method} ${req.url} -> ${upstream.statusCode ?? 502}`) })
   })
   proxyReq.on('error', (error) => {
     log(`upstream error  ${req.method} ${req.url}  ${error.message}`)

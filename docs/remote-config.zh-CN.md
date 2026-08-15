@@ -86,6 +86,15 @@ setx DSH_PROXY_TOKEN <一长串随机字符>     # 持久化，新进程生效
 （cookie 持久 1 年，基本只登录一次）；代价是口令强度低于随机长串——tailnet
 设备身份仍是主要边界，token 只是第二道防线。建议至少不与常见弱口令相同。
 
+**APK 直填 token**：dsh-remote APK 的设置页有独立的 Token 输入框；连接时
+自动把 token 写入 WebView cookie（`CookieManager.setCookie`），**WebView 内
+不会再出现反代的登录页**——浏览器和 APK 各填一次即可。
+
+**加载提速**：反代给带 `?rev=` 的 bundle 响应加
+`Cache-Control: public, max-age=31536000, immutable`——dsh 上游的 bundle
+是 `no-cache` 且无 ETag，慢链路上每次加载都会全量重下全部 bundle（数秒）；
+rev 是内容哈希，URL 随内容变化，immutable 缓存语义安全。
+
 ## 开机自启（可选）
 
 沿用现有零窗口模式（见教程第 4 节）：

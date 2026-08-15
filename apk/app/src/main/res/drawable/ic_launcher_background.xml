@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DeepSeek brand gradient (deepseek-500 -> deepseek-400), matching the
+     proxy login page mark. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:startColor="#4176E6"
+        android:endColor="#679EFE" />
+</shape>
