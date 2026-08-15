@@ -332,5 +332,8 @@ remote-gateway/
 ### 部署现状
 
 - `tailscale serve`：`/` → 3080（官方 GUI），`/m` → 3100（网关）。
-- 开机自启任务：`dsh-web`（dsh）、`dsh-gateway`（网关），均带端口占用保护 + 看门狗 + 日志（`~/.dsh/logs/`）。
+- 开机自启任务：`dsh-web`（dsh）、`dsh-gateway`（网关），**2026-08-15 起以
+  `wscript.exe + .vbs`（SW_HIDE）隐藏启动**（旧式 `powershell.exe -WindowStyle Hidden`
+  在任务计划登录场景会弹空白窗口，见 `docs/pitfalls.md` P32/P33）；均带端口占用保护
+  + 看门狗 + 日志（`~/.dsh/logs/`）。
 - 手机入口：`https://<machine>.<tailnet>.ts.net/m/` + 令牌；可"添加到主屏幕"作为 App 使用。

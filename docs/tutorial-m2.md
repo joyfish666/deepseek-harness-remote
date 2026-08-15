@@ -1,8 +1,10 @@
 # 方式二（M2）：M1 手机 UI 适配层（mobile-fit）
 
-> **状态：🚧 开发中（首个版本已修复可用）**。不是独立入口——它是**给方式一（M1）
-> 的手机端体验做适配**：M1 官方界面在电脑上体验最佳，手机上稍显局促，M2 让它在
-> 手机上更好用，而**不换界面、不改上游**。
+> **状态：🚧 开发中（未完成）**。⚠️ **注意：M2 的功能尚未完成**——当前只有"开机自启
+> 无窗口"这一部署问题已解决（vbs 隐藏方式），移动端适配本身仍在打磨中，可能还有
+> 布局瑕疵。它不是独立入口——是**给方式一（M1）的手机端体验做适配**：M1 官方界面
+> 在电脑上体验最佳、手机上稍显局促，M2 让它在手机上更好用，而**不换界面、不改上游**。
+> 日常使用请以 **M1** 为准。
 
 ## 1. 它是什么
 
@@ -82,6 +84,10 @@ window.__ModuleLoader__ ── 加载 /plugins/mobile-fit/client.js
 Get-ScheduledTask -TaskName dsh-web    # 查看
 schtasks /run /tn dsh-web              # 立即启动
 ```
+
+> M1 的自启任务必须是 **vbs 隐藏方式**（`wscript.exe + start-dsh.vbs`，见
+> [tutorial-m1.md](tutorial-m1.md) 第 3 节）——旧式 `powershell.exe -WindowStyle
+> Hidden` 会在登录时弹出空白窗口（见 `docs/pitfalls.md` P32/P33）。
 
 M2 的"停用自启" = 停用 M1 自启（见下节），或仅删除 patch 行并重启 dsh。
 
