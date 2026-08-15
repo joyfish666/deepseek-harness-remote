@@ -18,6 +18,13 @@
 > **重要说明**：本项目**无需修改源 dsh 代码**（纯叠加层）；上游 dsh 源码更新后，
 > 本项目会**同步适配**。
 
+## 界面预览
+
+<!-- 把截图放进 assets/ 目录后，把下面两行取消注释并改成实际文件名：
+![电脑网页端](assets/web-desktop.png)
+![手机 APK](assets/apk-mobile.png)
+-->
+
 ## 如何开启远程控制（概览）
 
 1. 安装 Node.js，确认 `npx @deepseek-ai/dsh web` 可启动；

@@ -11,6 +11,14 @@
 
 > **Note**: this project **does not modify the dsh source** (a pure overlay). When upstream dsh changes, this project **adapts accordingly**.
 
+## Screenshots
+
+<!-- Drop your screenshots into assets/ then uncomment and adjust the
+     filenames below:
+![Desktop web](assets/web-desktop.png)
+![Mobile / APK](assets/apk-mobile.png)
+-->
+
 ## Getting remote control (overview)
 
 1. Install Node.js and make sure `npx @deepseek-ai/dsh web` starts;
