@@ -2,8 +2,9 @@
 
 > 🌐 **语言**：[English](../README.md) · 中文
 
-基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）的
-**Web 远程访问与移动端适配**项目：让 dsh 的 Web 界面在电脑与手机上都能方便地使用。
+**在任何设备上，随时随地使用 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)。**
+电脑、手机都能用 —— 在家、在外都能远程操控你的 AI 智能体；手机端有专属优化界面，
+原生 Android 应用即将推出。
 
 - ✅ **电脑网页端访问**：本机 `http://127.0.0.1:3080`；远程经 Tailscale 隧道
   `https://<机器名>.<tailnet>.ts.net/`

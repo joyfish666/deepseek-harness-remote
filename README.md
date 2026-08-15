@@ -2,7 +2,7 @@
 
 > 🌐 **Language**: English · [中文](README.zh-CN.md)
 
-Remote web access and mobile adaptation for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`): make the dsh Web UI usable on both desktop and phone.
+**Use [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) from any device, anywhere.** Access your AI agent on desktop or phone — at home or remotely — with a mobile-optimized interface, and a native Android app on the way. Your agent, wherever you are.
 
 - ✅ **Desktop web access**: `http://127.0.0.1:3080` locally; remotely via Tailscale at `https://<machine>.<tailnet>.ts.net/`
 - ✅ **Mobile web adaptation (mobile-fit)**: same entry point; narrow screens automatically get the mobile layout (drawer navigation, session actions, input experience, full-screen settings, etc.)
