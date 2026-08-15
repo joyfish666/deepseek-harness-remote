@@ -44,6 +44,8 @@ cd apk
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
+Or use the one-shot helper (builds must exist): `powershell -File scripts\install-apk.ps1 -Type debug`.
+
 Release build (signed with `keystore.properties`, see below):
 
 ```powershell

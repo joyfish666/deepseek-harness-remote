@@ -39,6 +39,8 @@ cd apk
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
+或用一键脚本（需先构建好）：`powershell -File scripts\install-apk.ps1 -Type debug`。
+
 Release 构建（用 `keystore.properties` 签名，见下）：
 
 ```powershell
