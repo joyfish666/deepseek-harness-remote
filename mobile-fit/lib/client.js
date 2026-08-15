@@ -130,6 +130,15 @@ window.__ModuleLoader__.load({
       ensureElements();
     }
 
+    // ── Plugin shape ─────────────────────────────────────────────────────
+    // The browser-side cordis loader applies this module's exports as a
+    // plugin: it must be a function or an object with an `apply` method.
+    // Official client bundles do exactly this (exports.apply = apply).
+    // The actual CSS/JS injection above runs at module-materialization time,
+    // which the loader executes once per bundle rev.
+    function apply() {}
+
+    exports.apply = apply;
     return module.exports;
   }
 });

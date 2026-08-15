@@ -65,6 +65,11 @@ window.__ModuleLoader__  ── 加载 /plugins/mobile-fit/client.js（本包注
 
 ## 已知说明
 
+- **插件形状（重要）**：浏览器端 cordis loader 会把 client bundle 的 exports 当作
+  插件应用，**必须导出 `apply`**（函数或带 `apply` 方法的对象），否则页面显示
+  `Failed to load plugins ... invalid plugin, expect function or object with an "apply" method`。
+  本包与官方 bundle 一致：`exports.apply = apply`（注入逻辑在 factory 物化时执行）。
+  可用 `node mobile-fit/test/bundle-shape.mjs` 验证 bundle 形状。
 - 选择器使用官方语义类后缀（`[class$="_sidebarCol"]` 等），官方构建哈希前缀（如
   `pI_x6G_`）会随版本变化，语义后缀稳定；若上游改名需要同步更新。
 - 手机端默认隐藏右侧详情列（`_detailsCol`），桌面不受影响。
