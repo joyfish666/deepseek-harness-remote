@@ -1,4 +1,4 @@
-# Auto-start the dsh remote-config proxy (see docs/remote-config.zh-CN.md).
+# Auto-start the dsh remote-config proxy (see docs/tutorial.zh-CN.md section 5).
 #
 # Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File <this file>
