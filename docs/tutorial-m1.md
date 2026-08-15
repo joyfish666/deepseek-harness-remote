@@ -127,8 +127,8 @@ tailscale serve status    # 应显示 No serve config
 验证恢复：手机打不开原地址；电脑本地 `http://127.0.0.1:3080` 正常；
 `curl -H "Host: <任意tailnet地址>" http://127.0.0.1:3080/api/session.list` 返回 `403`。
 
-> 注意：本机同时启用了**方式三（M3）** 时，其挂载的 `mobile-fit` 插件行也在
-> `cordis.patch.yml` 中，恢复时一并删除；若启用了**方式二（M2）**，网关自启任务
+> 注意：本机同时启用了**方式二（M2）** 时，其挂载的 `mobile-fit` 插件行也在
+> `cordis.patch.yml` 中，恢复时一并删除；若启用了**方式三（M3）**，网关自启任务
 > 需单独停用（见对应教程）。
 
 ## 5. 安全边界

@@ -1,4 +1,4 @@
-# mobile-fit（M3：M1 手机 UI 适配层）
+# mobile-fit（M2：M1 手机 UI 适配层）
 
 让 **M1（官方原生 Web UI）在手机上更好用**：不换界面、不改上游，只通过 dsh 官方
 client 插件 seam 注入移动端 CSS 与少量交互（侧栏抽屉、触控目标、底部输入区、安全区适配）。
@@ -73,4 +73,4 @@ window.__ModuleLoader__  ── 加载 /plugins/mobile-fit/client.js（本包注
 - 选择器使用官方语义类后缀（`[class$="_sidebarCol"]` 等），官方构建哈希前缀（如
   `pI_x6G_`）会随版本变化，语义后缀稳定；若上游改名需要同步更新。
 - 手机端默认隐藏右侧详情列（`_detailsCol`），桌面不受影响。
-- 与 M2 完全独立：M2 是自建 PWA（`/m/`），M3 是 M1 官方界面的移动端适配（`/`）。
+- 与 M3 完全独立：M3 是自建 PWA（`/m/`），M2 是 M1 官方界面的移动端适配（`/`）。

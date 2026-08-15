@@ -1,116 +1,118 @@
-# 方式三（M3）：M1 手机 UI 适配层（mobile-fit）
+# 方式三（M3）：自建远程网关 + 手机 App（PWA）
 
-> **状态：🚧 开发中（首个版本已修复可用）**。不是独立入口——它是**给方式一（M1）
-> 的手机端体验做适配**：M1 官方界面在电脑上体验最佳，手机上稍显局促，M3 让它在
-> 手机上更好用，而**不换界面、不改上游**。
+> **状态：🚧 开发中**。独立方案，**不是 M1 的替代或升级**。日常使用请用方式一（M1）。
 
 ## 1. 它是什么
 
-M3 = 一个注入式 client 插件（`mobile-fit/`），通过 dsh 官方 client 插件 seam
-（与 `dsh-client-ui-*` 同款机制）向官方前端注入移动端 CSS 与少量交互：
+M3 = 自建网关（`remote-gateway/`）+ 移动端 PWA。手机像原生 App 一样使用
+（可"添加到主屏幕"、全屏、无地址栏），但会话、项目、模型调用全部在电脑上运行。
 
 ```
-手机浏览器
-   │  官方前端 dist（dsh-web-frontend，未改动）
+手机浏览器（PWA）
+   │  HTTPS + Bearer Token（REST + SSE）
    ▼
-window.__ModuleLoader__ ── 加载 /plugins/mobile-fit/client.js
-   │  ① <style> 注入：@media (max-width:820px) 移动端规则
-   │  ② 交互：汉堡按钮 + 侧栏抽屉 + 遮罩
+remote-gateway（Node ≥22 零依赖，监听 127.0.0.1:3100）
+   │  官方 /api 协议（RPC 信封 + events.mux/host 事件流）
    ▼
-官方 UI（React 树原样）
+dsh web（127.0.0.1:3080）
 ```
 
-- **窄屏（≤820px）自动启用**：三栏折叠为单栏、侧栏变抽屉（左上角 ☰ + 遮罩）、
-  详情列隐藏、输入区贴底（含 iPhone 安全区）、触控目标 ≥44px、输入框 16px
-  （防 iOS 聚焦缩放）；
-- **电脑宽屏完全不受影响**（仅媒体查询生效）；
-- 手机访问的还是 **M1 原入口** `https://<机器名>.<tailnet>.ts.net/`，无新路径；
-- 与 M2 完全独立：M2 是换一套界面（`/m/`），M3 是给官方界面做适配（`/`）。
+- 入口：`https://<机器名>.<tailnet>.ts.net/m/`（与 M1 的 `/` 并存）；
+- 带密码登录（HMAC 令牌）、限流、审计日志（`~/.dsh/logs/gateway-audit.log`）；
+- 功能：新建会话、工作区与文件浏览、同步会话、搜索、命令、模型选择、图片消息、
+  审批推送、停止/删除/目标、中英双语。
 
 ## 2. 启用
 
 ### 前置
 
-- 已完成 **M1**（Tailscale + serve + trustedHosts 均就绪）；
-- 本仓库已 clone 到本机（`mobile-fit/` 目录存在）。
+- 已完成 **M1**（Tailscale 组网 + serve + trustedHosts 均就绪）；
+- 需要 dsh 的 browse 能力（文件浏览）：在 `cordis.patch.yml` 中把目录选择器从
+  native 换为 browse（见下），**副作用：电脑端"选择工作区"也改为浏览器内浏览**
+  （官方 seam 换点）——这是 M3 与 M1 桌面端体验的已知冲突点。
 
 ### 步骤
 
-1. **把插件包挂进 dsh web profile 的依赖树**（junction 而非复制，改代码即生效）：
+1. **启动网关**（电脑上）：
 
-   ```powershell
-   $nm = "$HOME\.dsh\profiles\web\node_modules"
-   New-Item -ItemType Directory -Force $nm | Out-Null
-   cmd /c mklink /J "$nm\mobile-fit" "<仓库路径>\mobile-fit"
+   ```sh
+   cd remote-gateway
+   node server.js
    ```
 
-2. **在 `~/.dsh/profiles/web/cordis.patch.yml` 末尾追加**：
+   网关只监听 `127.0.0.1:3100`，由 tailscale serve 的 `/m` 路径对外。
 
-   ```yaml
-   - insert:
-       - id: mobile-fit
-         name: 'mobile-fit'
+2. **设置访问密码**：编辑 `remote-gateway/.env`，把 `GATEWAY_PASSWORD=` 改成
+   你自己的密码（建议 8 位以上），保存后**重启网关**生效。
+
+3. **手机访问**（Tailscale 保持连接）：浏览器打开
+
+   ```
+   https://<你的机器名>.<你的tailnet>.ts.net/m/
    ```
 
-3. **重启 dsh web**（client 插件集合在启动时扫描；热重载不会新增插件行）：
+   右上角 **⚙ 设置** → 输入密码 → **保存并登录**。Chrome 菜单 → **添加到主屏幕**
+   后可全屏使用。
 
-   ```powershell
-   schtasks /end /tn dsh-web     # 看门狗 10 秒后自动拉起
-   ```
-
-   > 若未注册自启任务（见下节），直接重启 dsh 进程即可。
-
-4. **验证**：手机打开 M1 入口 `https://<机器名>.<tailnet>.ts.net/`，窄屏时左上角
-   出现 ☰ 按钮、点击弹出侧栏抽屉、输入区贴底；电脑浏览器无变化。
+4. **验证**：手机上能看到与电脑端相同的会话列表；新建会话 → 发消息 → 实时看到流式回复。
 
 ## 3. 开机自启
 
-**M3 没有自己的自启任务**——它随 dsh 一起启动（挂在 dsh web profile 里）。
-只要 **M1 的自启任务（`dsh-web`）在跑，M3 就自动生效**：
-
 ```powershell
-Get-ScheduledTask -TaskName dsh-web    # 查看
-schtasks /run /tn dsh-web              # 立即启动
+$action = New-ScheduledTaskAction -Execute 'powershell.exe' `
+  -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<仓库路径>\scripts\start-gateway.ps1"'
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
+Register-ScheduledTask -TaskName 'dsh-gateway' -Action $action -Trigger $trigger -Settings $settings -Force
 ```
 
-M3 的"停用自启" = 停用 M1 自启（见下节），或仅删除 patch 行并重启 dsh。
+- 脚本自动定位到 `remote-gateway/` 目录（无需传 `-WorkDir`）；
+- 崩溃 10 秒后自动重启；3100 被占用则退出避免双实例；
+- 日志：`~/.dsh/logs/gateway.log`；审计：`~/.dsh/logs/gateway-audit.log`；
+- dsh 重启后网关自动重连（指数退避）。
+
+管理命令：
+
+| 操作 | 命令 |
+|---|---|
+| 查看任务 | `Get-ScheduledTask -TaskName dsh-gateway` |
+| 立即启动 | `schtasks /run /tn dsh-gateway` |
+| 停用自启 | `Unregister-ScheduledTask -TaskName dsh-gateway` |
+| 查看日志 | `Get-Content $HOME\.dsh\logs\gateway.log -Tail 50` |
 
 ## 4. 彻底停用（恢复原始状态）
 
 ```powershell
-# 1. 删除 patch 里的 mobile-fit 行（热重载对删除行生效，
-#    但 client 插件集合变化需重启 dsh 才完全卸载）：
-#    编辑 ~/.dsh/profiles/web/cordis.patch.yml，删除：
+# 1. 停用网关自启（若已注册）
+Unregister-ScheduledTask -TaskName dsh-gateway
+
+# 2. 关闭 /m 转发（手机立即无法访问 M3；M1 的 / 不受影响）
+tailscale serve --https=443 off
+tailscale serve --bg 3080    # 重新只保留 / 转发
+
+# 3. 恢复目录选择 seam（M3 专属改动，撤销后电脑端恢复原生目录选择器）：
+#    编辑 ~/.dsh/profiles/web/cordis.patch.yml，删除以下两段：
+#      - id: directory-picker
+#        disabled: true
 #      - insert:
-#          - id: mobile-fit
-#            name: 'mobile-fit'
-#    以及顶部对应注释。
+#          - id: directory-picker-browse
+#            name: '@deepseek-ai/dsh-host-directory-picker-browse'
+#    （热重载生效，无需重启 dsh）
 
-# 2. 删除 junction（解除挂载）
-Remove-Item "$HOME\.dsh\profiles\web\node_modules\mobile-fit"
-
-# 3. 重启 dsh 使插件集合变化生效
-schtasks /end /tn dsh-web    # 看门狗自动拉起
-
-# 4. 可选：彻底删除仓库里的 mobile-fit/ 目录（不影响 M1/M2）
+# 4. 删除网关目录与凭据（可选）
+Remove-Item -Recurse -Force <仓库路径>\remote-gateway
 ```
 
-验证停用：手机打开 M1 入口，不再出现 ☰ 按钮；桌面端无变化。
+## 5. 已知说明与冲突
 
-## 5. 自定义
-
-编辑 `mobile-fit/lib/client.js`：
-
-- `css` 字符串：移动端规则（选择器用官方语义类后缀 `[class$="_sidebarCol"]`
-  等，构建哈希前缀随版本变化但语义后缀稳定）；
-- 交互逻辑：汉堡按钮/抽屉/遮罩。
-
-改完**刷新页面即生效**（bundle rev 由 client-modules 每次请求重新哈希）；
-新增插件行才需要重启 dsh。
-
-## 6. 已知说明
-
-- **与 M1 的冲突**：无。M3 只是给 M1 界面叠加移动端样式，宽屏行为不变；
-- **与 M2 的冲突**：无。入口不同（`/` vs `/m/`），patch 行互不干扰；
-- 手机端默认隐藏右侧详情列（`_detailsCol`），桌面不受影响；
-- 若 dsh 升级导致 UI 类名后缀变化，需要同步更新 `client.js` 中的选择器。
+- **与 M1 的冲突**：启用 M3 需要把目录选择器换成 browse seam，会改变 M1 桌面端
+  "选择工作区"的交互（浏览器内浏览）。若你不需要 M3 的文件浏览，可以不做这个
+  改动（M3 其余功能不受影响）。
+- **与 M2 的关系**：完全独立，互不影响。M3 是换一套界面（`/m/`），M2 是给 M1
+  官方界面加移动端适配（`/`）。
+- **网关 API**：`POST /api/login`、`GET /api/health`、`GET/POST /api/sessions`、
+  `POST /api/sessions/:id/prompt|cancel|selectModel|rename|fork|archive|goals`、
+  `GET /api/search`、`GET /api/workspaces`、`GET /api/workspaces/:id/files`、
+  `GET /api/models|providers|presets`、`POST /api/approvals/:rpcId`、
+  `GET /api/stream?token=`（SSE）。详见 `remote-gateway/` 源码与验收脚本
+  `remote-gateway/tests/e2e.mjs`。
