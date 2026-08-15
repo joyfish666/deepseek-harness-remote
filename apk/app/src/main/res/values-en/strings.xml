@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DSH Remote</string>
+
+    <string name="setup_hint">Enter the access address of dsh on your computer (Tailscale domain, e.g. https://my-machine.my-tailnet.ts.net/). Keep the Tailscale app connected (VPN icon) on this phone.</string>
+    <string name="setup_url_hint">https://your-machine.your-tailnet.ts.net</string>
+    <string name="setup_connect">Connect</string>
+    <string name="setup_open_tailscale">Open Tailscale</string>
+    <string name="setup_url_invalid">Invalid address: enter a domain (e.g. your-machine.your-tailnet.ts.net)</string>
+
+    <string name="vpn_banner">Tailscale is not connected: open the Tailscale app and connect first.</string>
+    <string name="vpn_open">Open</string>
+
+    <string name="error_title">Cannot open the page</string>
+    <string name="error_detail">Please check: 1) dsh is running on the computer; 2) Tailscale is connected; 3) the address is correct. Note: configuration/credential pages (models, plugins, permissions, etc.) are loopback-only on the computer (HTTP 403) — dsh upstream security design.</string>
+    <string name="error_retry">Retry</string>
+    <string name="error_reset">Reconfigure address</string>
+
+    <string name="no_file_picker">No file picker available on this device</string>
+</resources>

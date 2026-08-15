@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DSH Remote</string>
+
+    <string name="setup_hint">输入电脑端 dsh 的访问地址（Tailscale 域名，如 https://我的机器名.my-tailnet.ts.net/）。手机需保持 Tailscale App 已连接（VPN 图标）。</string>
+    <string name="setup_url_hint">https://your-machine.your-tailnet.ts.net</string>
+    <string name="setup_connect">连接</string>
+    <string name="setup_open_tailscale">打开 Tailscale</string>
+    <string name="setup_url_invalid">地址无效：请输入域名地址（如 your-machine.your-tailnet.ts.net）</string>
+
+    <string name="vpn_banner">Tailscale 未连接：请先打开 Tailscale App 并连接，否则无法访问。</string>
+    <string name="vpn_open">打开</string>
+
+    <string name="error_title">无法打开页面</string>
+    <string name="error_detail">请确认：1) 电脑端 dsh 正在运行；2) Tailscale 已连接；3) 地址无误。注意：配置/凭据类页面（模型、插件、权限等）仅限电脑本机访问（HTTP 403），属 dsh 上游安全设计。</string>
+    <string name="error_retry">重试</string>
+    <string name="error_reset">重新设置地址</string>
+
+    <string name="no_file_picker">此设备没有可用的文件选择器</string>
+</resources>
