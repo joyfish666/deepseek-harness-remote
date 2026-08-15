@@ -1,8 +1,8 @@
-# mobile-fit（M2：M1 手机 UI 适配层）
+# mobile-fit（M2：dsh Web 移动端适配层）
 
-> **状态：✅ 基本可用（移动端日常使用，持续打磨中）**。给 **M1（官方原生 Web UI）**
-> 做手机适配：不换界面、不改上游，只通过 dsh 官方 client 插件 seam 注入移动端
-> CSS 与少量交互。日常使用以 M1（原生网站）为入口，M2 叠加在同一个 URL 上。
+> **状态：✅ 已可用（手机日常使用，持续打磨中）**。给 **dsh 官方 Web 界面**做手机
+> 适配：不换界面、不改上游，只通过 dsh 官方 client 插件 seam 注入移动端 CSS 与
+> 少量交互。**无需修改源 dsh 代码**；上游 dsh 源码更新后本包会同步适配。
 
 ## 能力一览
 
@@ -65,7 +65,7 @@ window.__ModuleLoader__  ── 加载 /plugins/mobile-fit/client.js（本包注
 
 ## 验证
 
-- 手机打开 `https://<机器名>.<tailnet>.ts.net/`（M1 原入口，无需 /m）
+- 手机打开 `https://<机器名>.<tailnet>.ts.net/`（与电脑同一入口）
 - 行为清单见 `docs/tutorial-m2.md` 第 5 节（抽屉、会话操作、输入、设置、声明、横幅等）；
 - 电脑浏览器无变化
 - 回归可用 `node mobile-fit/test/bundle-shape.mjs` 验证插件形状
@@ -91,10 +91,9 @@ window.__ModuleLoader__  ── 加载 /plugins/mobile-fit/client.js（本包注
   本包与官方 bundle 一致：`exports.apply = apply`（注入逻辑在 factory 物化时执行）。
   可用 `node mobile-fit/test/bundle-shape.mjs` 验证。
 - 选择器使用官方语义类后缀（`[class$="_sidebarCol"]` 等）与 `data-slot` 槽名，
-  官方构建哈希前缀（如 `pI_x6G_`）会随版本变化，语义后缀稳定；若上游改名需要
-  同步更新。
+  官方构建哈希前缀（如 `pI_x6G_`）会随版本变化，语义后缀稳定；**上游 dsh 升级后
+  需回归检查并同步适配**。
 - 手机端默认隐藏右侧详情列（`_detailsCol`），桌面不受影响。
 - **远程访问限制（上游安全设计）**：配置/凭据接口仅限本机回环（localhost）访问，
   远程域名访问 403——模型页、插件配置页、权限、Agent 预设等不可用；通用页语言/
-  外观可用。M2 在设置面板顶部显示双语说明横幅。
-- 与 M3 完全独立：M3 是自建 PWA（`/m/`），M2 是 M1 官方界面的移动端适配（`/`）。
+  外观可用。mobile-fit 在设置面板顶部显示双语说明横幅。

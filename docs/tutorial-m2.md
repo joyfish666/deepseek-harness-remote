@@ -1,44 +1,121 @@
-# 方式二（M2）：M1 手机 UI 适配层（mobile-fit）
+# M2：dsh Web 远程访问与移动端适配（mobile-fit）
 
-> **状态：✅ 基本可用（移动端日常使用，持续打磨中）**。M2 不是独立入口——它是
-> **给方式一（M1）的手机端体验做适配**：M1 官方界面在电脑上体验最佳、手机上稍显
-> 局促，M2 让它在手机上更好用，而**不换界面、不改上游**（官方前端 dist 零改动、
-> dsh 本体零改动，纯叠加层）。桌面（宽屏）完全不受影响。
-
-## 1. 它是什么
-
-M2 = 一个注入式 client 插件（`mobile-fit/`），通过 dsh 官方 client 插件 seam
-（与 `dsh-client-ui-*` 同款机制）向官方前端注入移动端 CSS 与少量交互：
-
-```
-手机浏览器
-   │  官方前端 dist（dsh-web-frontend，未改动）
-   ▼
-window.__ModuleLoader__ ── 加载 /plugins/mobile-fit/client.js
-   │  ① <style> 注入：@media (max-width:820px) 移动端规则
-   │  ② 交互：汉堡按钮 + 侧栏抽屉 + 遮罩 + 启动调整
-   ▼
-官方 UI（React 树原样）
-```
-
-- **窄屏（≤820px）自动启用**，手机与电脑看到的是同一个 URL、同一份官方界面；
-- 电脑宽屏完全不受影响（所有规则都在媒体查询内，交互逻辑也按 `matchMedia` 门控）；
-- 手机访问的还是 **M1 原入口** `https://<机器名>.<tailnet>.ts.net/`，无新路径；
-- 与 M3 完全独立：M3 是换一套界面（`/m/`），M2 是给官方界面做适配（`/`）。
-
-> 💡 **M1 与 M2 是否必须复用同一个路径？** 是——这是刻意设计，不是限制：
+> **状态：✅ 已可用**——电脑网页端直接访问 dsh Web 界面；手机网页端经 mobile-fit
+> 注入式适配（抽屉导航、会话操作、输入体验、设置面板全屏化等），持续打磨中。
+> 后续计划：**APK（安卓原生壳）**。
 >
-> - M2 的本质是**给 M1 官方前端注入样式/交互的叠加层**，没有自己的页面或服务器；
-> - 启用/停用由**屏幕宽度**决定（`@media (max-width: 820px)`）：手机窄屏自动得到
->   移动端适配，电脑宽屏不受影响——同一个 URL，两端各取所需；
-> - 若你希望"手机访问一个独立地址"（真正的独立界面），那是 **M3**（`/m/` 自建
->   PWA）的定位。M2 刻意不新增路径。
+> **零上游改动**：本项目**无需修改源 dsh 代码**（官方前端 dist 原样、dsh 本体原样），
+> 只通过官方 client 插件 seam 注入移动端样式与少量交互。**若上游 dsh 源码更新，
+> 本项目会同步适配**（类名后缀 / 槽名 / 接口变化时更新 `mobile-fit/lib/client.js`）。
 
-## 2. 启用
+## 1. 项目结构
+
+```
+电脑/手机浏览器
+   │  HTTPS（Tailscale 设备身份认证 + WireGuard 加密）
+   ▼
+tailscale serve（电脑 443 端口，反向代理）
+   ▼
+dsh web（127.0.0.1:3080，只监听本机）
+   │  /api 信任围栏（trustedHosts 白名单）
+   ├─ 电脑宽屏：官方界面原样
+   └─ 手机窄屏（≤820px）：官方界面 + mobile-fit 注入适配
+        │  window.__ModuleLoader__ ── 加载 /plugins/mobile-fit/client.js
+        │  ① <style> 注入：@media (max-width:820px) 移动端规则
+        │  ② 交互：汉堡按钮 + 侧栏抽屉 + 遮罩 + 启动调整
+        ▼
+     官方 UI（React 树原样）
+```
+
+- 电脑与手机看到的是**同一个 URL、同一份官方前端**，窄屏自动启用移动端布局，
+  电脑宽屏完全不受影响；
+- 手机入口与电脑一致：`https://<机器名>.<tailnet>.ts.net/`（本机可用
+  `http://127.0.0.1:3080`）。
+
+## 2. 部署 dsh Web（电脑网页端访问）
+
+### 准备
+
+| 端 | 要求 |
+|---|---|
+| 电脑 | Node.js，`npx @deepseek-ai/dsh web` 可正常启动（默认 `127.0.0.1:3080`） |
+| 手机（可选，仅需本机访问可跳过） | 安卓 / iOS，安装 [Tailscale](https://tailscale.com/download) App |
+| 账号（可选） | 一个 Tailscale 账号（免费版即可），电脑与手机登录同一账号 |
+
+### 第 1 步：组网（仅远程访问需要）
+
+1. 电脑安装 Tailscale 并登录；手机装 App 并登录**同一账号**。
+2. 验证：`tailscale status` 能看到两台设备（`100.x.y.z` 形式 IP）。
+
+### 第 2 步：启用 Serve（一次性管理员授权）
+
+```sh
+tailscale serve --bg 3080
+```
+
+首次会打印 `https://login.tailscale.com/f/serve?node=xxxx`，用浏览器打开并点
+**Enable**，然后重新执行上面的命令，看到 `Serve started and running in the
+background` 即成功。
+
+### 第 3 步：配置 dsh 信任围栏
+
+dsh 的 `/api` 只放行 loopback 或 `trustedHosts` 中的 Host。编辑
+`~/.dsh/profiles/web/cordis.patch.yml`（Windows：`%USERPROFILE%\.dsh\...`），
+不存在则新建：
+
+```yaml
+- id: connection
+  config:
+    trustedHosts: !!js "['<你的机器名>.<你的tailnet>.ts.net', ...ctx.webRuntime.trustedHosts]"
+```
+
+- `<你的机器名>.<你的tailnet>.ts.net` 用 `tailscale serve status` 输出里的域名；
+- ⚠️ 格式坑：`!!js` 只接受单个 YAML 标量，**整个表达式必须用双引号包裹**；
+- 该文件由 dsh 热重载，**无需重启 dsh**，几秒内生效。
+
+### 第 4 步：验证与访问
+
+手机浏览器（保持 Tailscale App 连接）打开 `https://<你的机器名>.<tailnet>.ts.net/`；
+电脑浏览器打开 `http://127.0.0.1:3080`。
+
+> ⚠️ 用**域名**不要用 IP：Tailscale Serve 只为域名签发 TLS 证书。
+
+### 第 5 步：开机自启（可选）
+
+Tailscale 是系统服务、serve 配置持久保存，重启电脑自动恢复；**dsh 本体不会自启**，
+注册计划任务：
+
+```powershell
+# 用 wscript 隐藏启动（vbs 包装），登录时无任何 cmd/powershell 窗口
+$action = New-ScheduledTaskAction -Execute 'wscript.exe' `
+  -Argument '"<仓库路径>\scripts\start-dsh.vbs"'
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
+Register-ScheduledTask -TaskName 'dsh-web' -Action $action -Trigger $trigger -Settings $settings -Force
+```
+
+> 💡 **为什么用 wscript + vbs**：计划任务直接执行 `powershell.exe -WindowStyle Hidden`
+> 时，隐藏标志在登录场景下**不生效**，会弹出两个"空的 powershell 窗口"（见
+> `docs/pitfalls.md`）。`start-dsh.vbs` 用 `WshShell.Run(..., 0, False)`（SW_HIDE）
+> 启动，**登录时零窗口**。
+
+脚本行为：登录时启动 dsh web（直接以 node 运行，无 cmd.exe 包装）；进程崩溃
+10 秒后自动重启；端口被占用则退出避免双实例。日志：`~/.dsh/logs/dsh-web.log`。
+
+管理命令：
+
+| 操作 | 命令 |
+|---|---|
+| 查看任务 | `Get-ScheduledTask -TaskName dsh-web` |
+| 立即启动 | `schtasks /run /tn dsh-web` |
+| 重启（先结束再拉起） | `schtasks /end /tn dsh-web`（看门狗 10 秒后自动重启） |
+| 停用自启 | `Unregister-ScheduledTask -TaskName dsh-web` |
+
+## 3. 启用手机适配（mobile-fit）
 
 ### 前置
 
-- 已完成 **M1**（Tailscale + serve + trustedHosts 均就绪）；
+- 第 2 节部署完成（dsh web 可访问）；
 - 本仓库已 clone 到本机（`mobile-fit/` 目录存在）。
 
 ### 步骤
@@ -65,27 +142,11 @@ window.__ModuleLoader__ ── 加载 /plugins/mobile-fit/client.js
    schtasks /end /tn dsh-web     # 看门狗 10 秒后自动拉起
    ```
 
-   > 若未注册自启任务（见下节），直接重启 dsh 进程即可。
+   > 若未注册自启任务，直接重启 dsh 进程即可。
 
-4. **验证**：手机打开 M1 入口 `https://<机器名>.<tailnet>.ts.net/`，窄屏时左上角
-   出现 ☰ 按钮，点击弹出侧栏抽屉（直接显示会话列表，右上角 × 关闭）；输入框
-   回车换行、右下角箭头发送；电脑浏览器无变化。详细行为见第 5 节清单。
-
-## 3. 开机自启
-
-**M2 没有自己的自启任务**——它随 dsh 一起启动（挂在 dsh web profile 里）。
-只要 **M1 的自启任务（`dsh-web`）在跑，M2 就自动生效**：
-
-```powershell
-Get-ScheduledTask -TaskName dsh-web    # 查看
-schtasks /run /tn dsh-web              # 立即启动
-```
-
-> M1 的自启任务必须是 **vbs 隐藏方式**（`wscript.exe + start-dsh.vbs`，见
-> [tutorial-m1.md](tutorial-m1.md) 第 3 节）——旧式 `powershell.exe -WindowStyle
-> Hidden` 会在登录时弹出空白窗口（见 `docs/pitfalls.md` P32/P33）。
-
-M2 的"停用自启" = 停用 M1 自启（见下节），或仅删除 patch 行并重启 dsh。
+4. **验证**：手机打开入口，窄屏时左上角出现 ☰ 按钮，点击弹出侧栏抽屉（直接
+   显示会话列表，右上角 × 关闭）；输入框回车换行、右下角箭头发送；电脑浏览器
+   无变化。详细行为见第 5 节清单。
 
 ## 4. 彻底停用（恢复原始状态）
 
@@ -104,14 +165,19 @@ Remove-Item "$HOME\.dsh\profiles\web\node_modules\mobile-fit"
 # 3. 重启 dsh 使插件集合变化生效
 schtasks /end /tn dsh-web    # 看门狗自动拉起
 
-# 4. 可选：彻底删除仓库里的 mobile-fit/ 目录（不影响 M1/M3）
+# 4.（可选）恢复信任围栏 / 关闭 serve / 停用 dsh 自启：
+#    把 cordis.patch.yml 恢复为初始内容（热重载生效）
+#    tailscale serve --https=443 off
+#    Unregister-ScheduledTask -TaskName dsh-web
+
+# 5. 可选：彻底删除仓库里的 mobile-fit/ 目录
 ```
 
-验证停用：手机打开 M1 入口，不再出现 ☰ 按钮；桌面端无变化。
+验证停用：手机打开入口，不再出现 ☰ 按钮；桌面端无变化。
 
 ## 5. 移动端行为清单
 
-以下为 M2 在手机（≤820px）上的完整行为，改代码后逐项回归：
+以下为手机（≤820px）上的完整行为，改代码后逐项回归：
 
 | 领域 | 行为 |
 |---|---|
@@ -120,10 +186,10 @@ schtasks /end /tn dsh-web    # 看门狗自动拉起
 | 会话标题/统计栏 | 底部统计栏（轮数/步数/耗时/速率等）与顶部会话标题（面包屑）可**左右滑动查看**完整内容（隐藏滚动条） |
 | 输入体验 | 输入框 **Enter 换行**（发送用右下角箭头）；输入框 16px 防 iOS 聚焦缩放；iOS 键盘回车键提示为"换行"（enterkeyhint）；输入区贴底并适配 iPhone 安全区 |
 | 设置面板 | 全屏显示（100vw × 100dvh、无圆角、适配安全区）；导航栏变为**顶部横向标签条**；各分区内容可正常滚动 |
-| 内测声明 | 首次弹出，点"继续"后**不再弹出**（localStorage 持久化；上游在远程浏览器下仅内存保存，这是 M2 的补充） |
+| 内测声明 | 首次弹出，点"继续"后**不再弹出**（localStorage 持久化；上游在远程浏览器下仅内存保存，这是 mobile-fit 的补充） |
 | 上游安全提示 | 远程访问时，设置面板顶部显示说明横幅：配置/凭据接口（模型、插件配置、权限、Agent 预设等）仅限本机回环访问，远程 403 属 dsh 上游安全设计；横幅**跟随界面语言**中英切换，通用页内语言/外观等可用功能不受影响 |
 | 触控细节 | 触控目标 ≥44px；会话/项目行、图标按钮均满足；详情列（右侧）默认隐藏；对话拖拽手柄隐藏 |
-| 兼容性 | 电脑宽屏（>820px）完全无变化；820–1024px 为官方窄屏态（收纳栏），M2 不介入 |
+| 兼容性 | 电脑宽屏（>820px）完全无变化；820–1024px 为官方窄屏态（收纳栏），mobile-fit 不介入 |
 
 ## 6. 自定义
 
@@ -148,14 +214,16 @@ schtasks /end /tn dsh-web    # 看门狗自动拉起
 
 ## 7. 已知说明
 
-- **与 M1 的冲突**：无。M2 只是给 M1 界面叠加移动端样式，宽屏行为不变；
-- **与 M3 的冲突**：无。入口不同（`/` vs `/m/`），patch 行互不干扰；
-- **远程访问限制（上游安全设计，非 M2 缺陷）**：dsh 把配置/凭据接口
+- **零上游改动**：官方前端 dist 与 dsh 本体均未修改；`deepseek-harness-master/`
+  仅为本地参考源码（不纳入版本控制、不上传）。**上游 dsh 源码更新后，本项目会
+  同步适配**：类名后缀、`data-slot` 槽名或接口变化时更新 `mobile-fit/lib/client.js`
+  并回归行为清单；
+- **远程访问限制（上游安全设计，非本项目缺陷）**：dsh 把配置/凭据接口
   （`settings.describe`/`credentials.*` 等）钉在本机回环，远程域名访问一律 403——
   模型页报错、插件配置页/权限/Agent 预设相关操作空白或不可用均属此列；通用页的
   语言/外观等不依赖该平面的功能正常。电脑上用 `http://127.0.0.1:<端口>` 访问即可；
 - 手机端默认隐藏右侧详情列（`_detailsCol`），桌面不受影响；
-- 若 dsh 升级导致 UI 类名后缀或 `data-slot` 槽名变化，需要同步更新 `client.js`
-  中的选择器；
 - 内测声明的本地持久化键绑定上游声明版本号（`mobile-fit:welcome-ack:<版本>`），
-  上游声明文案变更后需同步更新该键以重新提示一次。
+  上游声明文案变更后需同步更新该键以重新提示一次；
+- **后续计划：APK（安卓原生壳）**——把当前网页端适配体验打包为安卓应用
+  （WebView 壳 + 通知等），届时沿用本仓库的适配层与部署链路。
