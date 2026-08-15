@@ -1,5 +1,8 @@
 # 踩坑记录（Pitfalls）
 
+> **读者**：本文件面向**开发者 / 维护者**（修改本项目代码前必读）。只想使用本项目的
+> 用户无需阅读。
+>
 > **规矩**：修改相关代码前，先读本文件；每踩一个新坑，立刻追加记录。
 > **原则**：解决问题必须先找**根源**；修复时要思考**其他场景**是否也存在同类问题；禁止只针对单个症状打补丁。
 
@@ -63,3 +66,73 @@
 3. **性能类问题先量化**：先测数据量级（历史事件数、单条消息大小），再决定对策。
 4. **零依赖优先**：能用 Node 内置能力就不用 npm 包，部署与维护成本最低。
 5. **安全默认关**：认证、限流、审计、目录约束（越界 403）都是默认行为，不是可选项。
+
+---
+
+# Pitfall Log (Pitfalls)
+
+> **Audience**: this file is for **developers / maintainers** (read before touching this project's code). Users who only want to use the project can skip it.
+>
+> **Rule**: read this file before modifying related code; append a new entry immediately whenever you hit a new pitfall.
+> **Principles**: always find the **root cause**; when fixing, check whether the same pattern breaks **other scenarios** too; never patch a single symptom.
+
+---
+
+## 1. Windows / PowerShell Environment
+
+| # | Pitfall | Root cause | Fix |
+|---|---|---|---|
+| P1 | `start-dsh.ps1` with Chinese comments fails to parse under Task Scheduler (Windows PowerShell 5.1) | PS 5.1 reads UTF-8-without-BOM files as ANSI (GBK); multibyte sequences swallow newlines | Keep scripts delivered to PS 5.1 **pure ASCII**; or save them as UTF-8 **with BOM** |
+| P2 | JSON written by `Out-File -Encoding utf8` is rejected ("body is not JSON") | PS 5.1's `utf8` = with BOM; the BOM pollutes the first JSON byte | Write JSON with `[System.IO.File]::WriteAllText`; or strip the BOM manually |
+| P3 | `curl -d "{\"a\":1}"` loses quotes in PowerShell; the server receives broken JSON | PowerShell quote-escaping when passing arguments to native programs | Always pass JSON bodies via `--data-binary "@file"` |
+| P4 | `Set-Content -NoNewline` joins array elements into one line | `-NoNewline` does not add element separators | Pipe `@(...) \| Set-Content` (line by line); always re-parse `.env` after writing |
+| P5 | Direct `git push` to GitHub gets connection reset | The network needs a proxy | Repo-level `git config http.proxy http://127.0.0.1:7890` (+https.proxy); don't touch the global config |
+
+## 2. dsh Configuration & Hot Reload
+
+| # | Pitfall | Root cause | Fix |
+|---|---|---|---|
+| P6 | `!!js` patch expression with a spaced array → dsh fails loudly at startup | dsh's `!!js` tag has `kind: "scalar"`; it accepts only a **single YAML scalar** | Wrap the whole JS expression in **double quotes as a string**: `trustedHosts: !!js "[...array...]"` |
+| P7 | Changed `~/.dsh/profiles/web/cordis.patch.yml` and assumed a restart is needed | Profile patches are **hot-reloaded** by `watchUserPatches` (Cordis HMR) | Effective within seconds; but a **format error fails loudly** — back up before editing |
+| P8 | `host.listDirectory` returns "needs the browse capability" | Directory picking is a seam: the native backend has no browse method; localhost resolves to native by default | Disable `directory-picker`(auto) in the patch and insert a `directory-picker-browse` row (side effect: desktop workspace picking becomes in-browser too) |
+| P9 | Editing the profile patch can restart the dsh connection layer → established WebSockets all drop | HMR re-applies transactionally and rebuilds related plugin fibers | Consumers must **auto-reconnect** (exponential backoff); SSE writers must try/catch to avoid dead-client propagation |
+| P10 | `session.search` reports "search is disabled: openAt never" | The web-app bundle defaults to `session-query-sqlite.openAt: never` (full-text search is opt-in) | Restate the whole line in the profile patch: `{path: ':memory:', openAt: first-search}` (lazy index on first search; hot-reload applies) |
+
+## 3. dsh Protocol
+
+| # | Pitfall | Root cause | Fix |
+|---|---|---|---|
+| P11 | Session history renders "error undefined / 🔧 undefined" | `SessionEvent` payloads live in the **`data`** field: `data.content`, `data.message.content`, `data.chunk.text`, `data.name`, `data.arguments`, `data.error`; the top level only has `type/seq/time` | Always read `ev.data.*`; never guess fields at the top level |
+| P12 | `/api/workspaces/archiveSession` returns 404 | Wire paths = **full dotted method names**: `/api/workspace.archiveSession` (`session.list` → `/api/session.list`) | Build paths directly from the method name |
+| P13 | `session.prompt` content starting with `/` is a slash command and doesn't consume the model | Official semantics | UI can hint "(/ starts a command)"; no special handling needed |
+
+## 4. UI / Frontend (incl. mobile adaptation)
+
+| # | Pitfall | Root cause | Fix |
+|---|---|---|---|
+| P14 | Tapping ⋯ on a session row: height snaps 44→32px, the ⋯ button vanishes, the list jumps (looks like a UI reload) | Rows carry multiple classes (`sessionRow selected menuOpen …`); `[class$="_sessionRow"]` suffix matching only hits when that name is the LAST class — adding `selected`/`menuOpen` breaks the rule | Use **substring matching** `[class*="_sessionRow"]` for multi-class elements; or add your own data attribute (`data-mobile-fit="expanded"`) |
+| P15 | Hard-coded official class names break after dsh upgrades | Build hashes (e.g. `pI_x6G_`) change per version; semantic suffixes are stable | Depend only on semantic suffixes `[class$="_suffix"]` and `data-slot="<slot-name>"`; regression-check after upstream upgrades |
+| P16 | Settings panel / dialogs get confined to the 320px drawer box and flash not-full-screen | The drawer's `transform` makes it the **containing block** for fixed descendants; the transform transition delays the containing-block switch | Temporarily set `transform: none` on the drawer while a dialog is open (`:has([class$="_mask"])`) plus `transition: none` (otherwise the dialog flashes inside the drawer box during the transition) |
+| P17 | Models page 403; plugin-config/permissions/agent-presets blank (remote access) | dsh pins the settings/credentials plane to **loopback**; remote domains always get 403 and most surfaces swallow the error silently (`catch { return }`) | **Upstream security design — do not bypass**; mobile-fit shows a bilingual banner at the top of the settings panel; use `http://127.0.0.1:<port>` on the PC |
+| P18 | Internal-testing notice pops up on every refresh (remote access) | Upstream persists the acknowledgement in **memory** for remote (non-loopback) browsers | mobile-fit adds localStorage persistence (key bound to the upstream notice version; bump the key when the copy changes to prompt once more) |
+| P19 | The load-time "pre-expand" cancels out the user's drawer-open expand → drawer is blank except × | Opening the drawer mounts the scrim, which fires the MutationObserver → the expand logic clicks the same toggle again before React re-renders (expand then collapse) | Make the expand action **at-most-once per load** (idempotent flag); every observer-triggered action must be idempotent |
+| P20 | Intercepting Enter for newline: no send, but no newline either, cursor disappears until the next character | `setRangeText` does not fire the `input` event on iOS Safari, so the controlled draft never updates and the cursor is lost | Intercept with `stopPropagation()` only — **no** `preventDefault()` / manual text insertion: let the browser insert the newline natively (cursor/draft/input event all native) while React's send handler never sees the key |
+
+## 5. Deployment / Tailscale
+
+| # | Pitfall | Root cause | Fix |
+|---|---|---|---|
+| P21 | `tailscale serve` first use: "Serve is not enabled on your tailnet" | Tailscale safety switch; needs one web authorization | Enable via the `https://login.tailscale.com/f/serve?node=…` link the terminal prints |
+| P22 | `https://<tailnet-ip>/` won't open (TLS alert / schannel doesn't support IP SNI) | This Serve version issues certificates only for **MagicDNS domains**; Windows schannel sends no SNI for IPs | Always use `https://<machine>.<tailnet>.ts.net/`; test with Node/curl, not schannel |
+| P23 | Autostart tasks must prevent double instances | The user may have started manually at login | The autostart script checks port usage (`Get-NetTCPConnection -LocalPort`) before starting |
+| P24 | Phone keyboard Enter "sends" while users expect a newline | Desktop habit (Enter = send) conflicts with mobile keyboards | On mobile, Enter always inserts a newline; sending goes through the button only (design decision, not a bug) |
+| P25 | Two **blank powershell.exe windows** pop at login (every reboot) | The task Action runs `powershell.exe -WindowStyle Hidden -File …` directly: **SW_HIDE is not honored in the Task Scheduler login scenario**, so the watchdog console is created and shown (title = process path; blank because output is redirected to logs) | Wrap the task Action with **`wscript.exe` + `.vbs`** (`WshShell.Run "powershell … -File …", 0, False` — SW_HIDE applied by wscript) → zero windows at login. ⚠️ Never run `taskkill /T` against a hosted WindowsTerminal/console — the service processes (dsh) hosted inside it get killed too and 3080 dies |
+| P26 | `-WindowStyle Hidden` powershell still pops a window (same family as P25) | Same as above: STARTF_USESHOWWINDOW handling at Task Scheduler startup differs from interactive shells | Same: always use the vbs wrapper; update an existing task with `schtasks /change /tn <task> /tr "wscript.exe …\xxx.vbs"` |
+
+## 6. Methodology (lessons learned)
+
+1. **Find the root cause**: symptom → reproduce → confirm against protocol/source → fix → regression. Never settle for "looks right".
+2. **Check laterally**: when one scenario breaks, check whether the same field/pattern breaks elsewhere (e.g. P11's `data.*` issue affects both history and live events, all event types).
+3. **Quantify performance problems first**: measure the data volume (event counts, message sizes) before choosing a fix.
+4. **Zero-dependency first**: prefer Node built-ins over npm packages; lowest deployment and maintenance cost.
+5. **Secure by default**: authentication, rate limiting, auditing, and directory constraints (out-of-bounds 403) are defaults, not options.
