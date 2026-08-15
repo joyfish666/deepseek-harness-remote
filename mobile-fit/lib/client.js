@@ -338,11 +338,17 @@ window.__ModuleLoader__.load({
       // script: upstream's unlock effect runs el.focus() whenever the active
       // session changes (InputBar's [locked, sessionId] effect). On phones
       // that raises the keyboard while the user only picked a conversation —
-      // typing intent is a tap on the box itself. A real tap is a TRUSTED
-      // focus event and passes through; a scripted one (isTrusted false) is
-      // refused — except right after a touch inside the composer dock, where
-      // upstream's keep-focus refocus (send button mousedown) is gesture
-      // driven and must survive. Chrome cancels focusin outright via
+      // typing intent is a tap on the box itself. Script focus cannot be told
+      // apart from a real tap by the event: the UA fires focus/focusin with
+      // isTrusted=true even when script called focus() (the focusing steps
+      // run internally, never a script dispatch), so isTrusted is useless
+      // here. The reliable signal is the pointer that precedes the focus: a
+      // pointerdown inside the composer dock (the box or its buttons) is
+      // typing intent; anything else (session row, drawer, onboarding
+      // dialog) is not. Focus within 600ms of a dock pointerdown is allowed
+      // — a real tap focuses in that window, and the send button's
+      // keep-focus refocus rides a mousedown inside the dock — while any
+      // other composer focus is refused. Chrome cancels focusin outright via
       // preventDefault (no keyboard flash); engines where focusin is not
       // cancelable get the blur() fallback.
       var lastDockPointerAt = 0
@@ -359,7 +365,6 @@ window.__ModuleLoader__.load({
         var target = event.target
         if (!(target instanceof HTMLTextAreaElement)) return
         if (!target.matches('textarea[class$="_input"]')) return
-        if (event.isTrusted) return
         if (Date.now() - lastDockPointerAt < 600) return
         event.preventDefault()
         target.blur()

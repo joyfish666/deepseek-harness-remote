@@ -49,7 +49,7 @@
 | P18 | 内测声明每次刷新都弹出（远程访问） | 上游在远程浏览器（非 loopback）下用**内存**持久化确认状态 | mobile-fit 用 localStorage 补充持久化（键绑定上游声明版本号，文案变更时同步更新以重新提示一次） |
 | P19 | 页面加载后的"预展开"与用户开抽屉的展开互相抵消 → 抽屉白屏只剩 × | 打开抽屉时遮罩挂载触发 MutationObserver → 展开逻辑在 React 重渲染前又点了一次展开开关（展开→收起） | 展开动作**每次加载最多一次**（幂等开关）；观察器触发的动作都要幂等 |
 | P20 | 拦截 Enter 换行后：不发送了但换行不出现、光标消失，须再输入一个字符才恢复 | iOS Safari 上 `setRangeText` 不触发 `input` 事件，受控组件草稿不更新、光标错乱 | 拦截只 `stopPropagation()`、**不要** `preventDefault()`/手动插文本——让浏览器原生换行（光标/草稿/输入事件全走原生），React 发送处理器收不到按键即可 |
-| P27 | 手机端切换会话时输入框被自动聚焦、键盘弹出 | 上游 InputBar 的 unlock 效果在 mount/sessionId 变化时执行 `el.focus()`（桌面习惯：选中会话即可直接输入）；手机端无手势参与，键盘被拉起 | mobile-fit 拦截**非用户手势的脚本聚焦**：`focusin` 的 `isTrusted=false` 且目标是 composer 时 `preventDefault()`（Chrome 直接取消聚焦，无键盘闪烁）+ `blur()` 兜底（不可取消的引擎）；但 dock 内手势后 600ms 内的脚本回焦（发送按钮 keep-focus）放行 |
+| P27 | 手机端切换会话时输入框被自动聚焦、键盘弹出 | 上游 InputBar 的 unlock 效果在 mount/sessionId 变化时执行 `el.focus()`（桌面习惯：选中会话即可直接输入）；手机端无手势参与，键盘被拉起。**坑中坑**：脚本 `focus()` 派发的 focus/focusin 事件 `isTrusted` 仍为 `true`（UA 内部聚焦步骤执行，非脚本 `dispatchEvent`），**不能用 `isTrusted` 区分用户点击与脚本聚焦**（第一版修复即因此失效） | 以**指针轨迹**为准：composer dock 内 600ms 内的 `pointerdown` = 输入意图（放行，真实点按与发送按钮 keep-focus 都在此窗口）；其他来源的 composer 聚焦一律 `preventDefault()`（Chrome 直接取消聚焦，无键盘闪烁）+ `blur()` 兜底（不可取消的引擎） |
 
 ## 五、部署 / Tailscale
 
