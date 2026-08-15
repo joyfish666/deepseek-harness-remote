@@ -2,5 +2,10 @@
 <resources>
     <style name="Theme.DshRemote" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/white</item>
+        <!-- Android 15+ enforces edge-to-edge for targetSdk 35: the WebView
+             would draw under the status bar / camera punch-hole. Opt out so
+             content starts below the status bar (the "leave a row at the
+             top" request for full-screen phones). -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 </resources>

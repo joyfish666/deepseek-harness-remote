@@ -12,7 +12,7 @@
     <string name="vpn_open">Open</string>
 
     <string name="error_title">Cannot open the page</string>
-    <string name="error_detail">Please check: 1) dsh is running on the computer; 2) Tailscale is connected; 3) the address is correct. Note: configuration/credential pages (models, plugins, permissions, etc.) are loopback-only on the computer (HTTP 403) — dsh upstream security design.</string>
+    <string name="error_detail">Please check: 1) dsh is running on the computer; 2) Tailscale is connected; 3) the address is correct.</string>
     <string name="error_retry">Retry</string>
     <string name="error_reset">Reconfigure address</string>
 
@@ -25,5 +25,5 @@
     <string name="settings_clear_confirm">This clears login state, cache and local memory (the internal-testing notice will reappear once). Continue?</string>
     <string name="settings_clear_yes">Clear</string>
     <string name="settings_keep_awake">Keep screen on</string>
-    <string name="settings_about">DSH Remote v%1$s — an Android shell (WebView container) for the dsh Web GUI; no dsh source is touched. Note: configuration/credential pages (models, plugins, permissions, agent presets, etc.) are loopback-only on the computer (HTTP 403 remotely) — dsh upstream security design.</string>
+    <string name="settings_about">DSH Remote v%1$s — an Android shell (WebView container) for the dsh Web GUI; no dsh source is touched. Configuration/credential pages are computer-local by default (dsh upstream security design); deploying the remote-config proxy unlocks them on the phone.</string>
 </resources>

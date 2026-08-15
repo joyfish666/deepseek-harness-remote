@@ -27,6 +27,24 @@ function getFreePort() {
 
 function startMockTarget() {
   const target = http.createServer((req, res) => {
+    if (req.url === '/') {
+      // A stand-in for the dsh entry page: boot manifest with mobile-fit
+      // LAST (as the profile patch appends it) plus the flag-free head.
+      const manifest = {
+        rev: 'mock-1',
+        entries: [
+          { id: '@deepseek-ai/dsh-client-modules', url: '/plugins/m.js', rev: 'a', inject: [], immediately: true },
+          { id: '@deepseek-ai/dsh-client-connection', url: '/plugins/c.js', rev: 'b', inject: [], immediately: true },
+          { id: '@deepseek-ai/dsh-client-ui-settings', url: '/plugins/s.js', rev: 'c', inject: ['@deepseek-ai/dsh-client-connection'] },
+          { id: 'mobile-fit', url: '/plugins/mobile-fit/client.js', rev: 'd', immediately: true },
+        ],
+      }
+      res.writeHead(200, { 'content-type': 'text/html' })
+      // Note the spaces around "=" — the real dsh template writes
+      // `window.__DSH_BOOT__ = {...}`; the rewrite must match that.
+      res.end(`<!doctype html><head><title>dsh</title></head><body><script>window.__DSH_BOOT__ = ${JSON.stringify(manifest)}</script></body>`)
+      return
+    }
     res.writeHead(200, { 'content-type': 'application/json' })
     res.end(JSON.stringify({
       method: req.method,
@@ -249,6 +267,35 @@ function check(name, cond, detail = '') {
   check('upgrade -> 101', result.headers.includes('101'), result.headers.split('\r\n')[0])
   check('upstream upgrade headers relayed', result.headers.includes('X-Mock-Upgrade: yes'))
   check('bytes echo both ways', result.echoed === 'ping', JSON.stringify(result.echoed))
+
+  proxy.child.kill('SIGTERM')
+  target.close()
+}
+
+// ── Test 4: HTML rewriting (proxy flag + boot-manifest reorder) ─────────
+{
+  const target = await startMockTarget()
+  const targetPort = target.address().port
+  const proxyPort = await getFreePort()
+  const proxy = startProxy(proxyPort, targetPort, '')
+  await waitReady(proxyPort, false)
+
+  const page = await fetch(`http://127.0.0.1:${proxyPort}/`)
+  const html = await page.text()
+  check('html served', page.status === 200 && html.includes('<title>dsh</title>'))
+  check('proxy flag injected', html.includes('<script>window.__DSH_PROXY__=true</script>'))
+
+  const marker = '__DSH_BOOT__'
+  const assignAt = html.indexOf(marker) + marker.length
+  const jsonStart = html.indexOf('{', assignAt)
+  const scriptEnd = html.indexOf('</script>', jsonStart)
+  const manifest = JSON.parse(html.slice(jsonStart, scriptEnd).trim())
+  const entries = manifest.entries
+  const connIndex = entries.findIndex((e) => e.id === '@deepseek-ai/dsh-client-connection')
+  const mfIndex = entries.findIndex((e) => e.id === 'mobile-fit')
+  check('mobile-fit moved right after connection', mfIndex === connIndex + 1, `mf=${mfIndex} conn=${connIndex}`)
+  check('mobile-fit got the inject edge', JSON.stringify(entries[mfIndex]?.inject) === JSON.stringify(['@deepseek-ai/dsh-client-connection']))
+  check('other rows untouched', entries.some((e) => e.id === '@deepseek-ai/dsh-client-ui-settings'))
 
   proxy.child.kill('SIGTERM')
   target.close()

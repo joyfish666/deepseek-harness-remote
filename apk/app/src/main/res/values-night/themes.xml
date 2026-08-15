@@ -2,5 +2,7 @@
 <resources>
     <style name="Theme.DshRemote" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@android:color/black</item>
+        <!-- Same edge-to-edge opt-out as values/themes.xml. -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 </resources>

@@ -56,5 +56,7 @@ const valid = typeof exportsObj === "function" || isApplicable(exportsObj);
 console.log("plugin shape valid:", valid);
 console.log("exports keys:", Object.keys(exportsObj));
 console.log("exports.apply type:", typeof exportsObj.apply);
+console.log("exports.inject:", JSON.stringify(exportsObj.inject));
 if (!valid) process.exit(1);
+if (!Array.isArray(exportsObj.inject)) throw new Error("bundle must export an inject list (official client bundle shape)");
 console.log("OK: browser-side cordis will accept this plugin");

@@ -370,55 +370,6 @@ window.__ModuleLoader__.load({
         target.blur()
       }
 
-      // ── Loopback-only security notice ──────────────────────────────────
-      // dsh gates its whole settings/credentials plane to loopback; remote
-      // access hits HTTP 403 by design, and most surfaces swallow the
-      // failure silently (blank cards, empty fields) while the models page
-      // shows a bare transport error. Every settings section touches that
-      // plane somewhere — Models, plugin cards, permission and agent-preset
-      // rows inside General included — so one banner at the top of the
-      // settings panel explains the constraint whenever the page is served
-      // from a remote host, in the app's own locale, without claiming the
-      // whole page is broken (language/appearance still work remotely).
-      var LOOPBACK_HINT_ZH = "（提示：dsh 上游安全限制——配置/凭据接口仅限本机回环（localhost/127.0.0.1）访问，远程访问下依赖这些接口的配置（模型、插件、权限、Agent 预设等）不可用（HTTP 403）。请于运行 dsh 的电脑浏览器打开 http://127.0.0.1:<dsh端口>）"
-      var LOOPBACK_HINT_EN = "(Note: dsh's upstream security restricts configuration/credential interfaces to loopback (localhost/127.0.0.1); under remote access, configuration that depends on them (models, plugins, permissions, agent presets, etc.) is unavailable (HTTP 403). Open http://127.0.0.1:<dsh-port> in the browser on the machine running dsh.)"
-
-      function isLoopbackHost() {
-        var hostname = (typeof location !== "undefined" && location.hostname) || ""
-        if (hostname === "localhost" || hostname === "[::1]") return true
-        return /^127\./.test(hostname)
-      }
-
-      // The settings panel is open whenever the banner matters, so the nav
-      // cells reveal the app's locale (the app never sets document lang).
-      function uiIsChinese() {
-        var cells = document.querySelectorAll('[class*="_navCell"]')
-        for (var i = 0; i < cells.length; i++) {
-          if (/[\u4e00-\u9fff]/.test(cells[i].textContent || "")) return true
-        }
-        return false
-      }
-
-      // The settings panel mounts per open and unmounts on close; keep the
-      // banner in its content column while it applies, and take it out the
-      // moment the locale no longer calls for it.
-      function syncSettingsBanner() {
-        var content = document.querySelector('[class$="_overlay"] > [class$="_panel"] > [class$="_content"]')
-        var banner = content === null ? null : content.querySelector('[data-mobile-fit-hint]')
-        if (isLoopbackHost()) {
-          if (banner !== null) banner.remove()
-          return
-        }
-        var text = uiIsChinese() ? LOOPBACK_HINT_ZH : LOOPBACK_HINT_EN
-        if (banner === null && content !== null) {
-          banner = document.createElement("p")
-          banner.setAttribute("data-mobile-fit-hint", "")
-          banner.style.cssText = "margin:0;padding:10px 12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#81858c);background:var(--dsw-alias-bg-layer-3, rgba(128,128,128,0.12));border-bottom:1px solid var(--dsw-alias-border-l2, rgba(128,128,128,0.35))"
-          content.insertBefore(banner, content.firstChild)
-        }
-        if (banner !== null && banner.textContent !== text) banner.textContent = text
-      }
-
       // ── Native shell bridge (dsh-remote APK) ───────────────────────────
       // When hosted in the Android shell, window.DshShell exposes native
       // actions (currently openSettings). Add a gear button below the burger
@@ -505,30 +456,35 @@ window.__ModuleLoader__.load({
       document.addEventListener("keydown", composerEnterToNewline, true);
       document.addEventListener("pointerdown", noteComposerPointer, true);
       document.addEventListener("focusin", suppressScriptedComposerFocus, true);
-      // The settings panel mounts deep inside the React tree; watch the
-      // subtree and keep the remote-access banner in sync while it is open.
-      var hintTimer = null;
-      var hintObserver = new MutationObserver(function () {
-        if (hintTimer !== null) return
-        hintTimer = setTimeout(function () {
-          hintTimer = null
-          syncSettingsBanner()
-        }, 300)
-      });
-      hintObserver.observe(document.body, { childList: true, subtree: true });
-      syncSettingsBanner();
       ensureElements();
     }
 
     // ── Plugin shape ─────────────────────────────────────────────────────
     // The browser-side cordis loader applies this module's exports as a
-    // plugin: it must be a function or an object with an `apply` method.
-    // Official client bundles do exactly this (exports.apply = apply).
-    // The actual CSS/JS injection above runs at module-materialization time,
-    // which the loader executes once per bundle rev.
-    function apply() {}
+    // plugin: it must be a function or an object with an `apply` method
+    // (plus an optional `inject` service list, exactly like official
+    // bundles). The actual CSS/JS injection above runs at module-
+    // materialization time, which the loader executes once per bundle rev.
+    //
+    // Behind the remote-config proxy the page authority is still the
+    // tailnet domain, so the connection client reports isLoopback=false and
+    // every settingsScope-bound surface (plugin config cards, model
+    // settings, document controls) falls back to memory persistence — the
+    // "plugin config invisible" symptom. The proxy injects
+    // window.__DSH_PROXY__ and reorders this row in the boot manifest to
+    // activate right after dsh-client-connection (hence the inject edge),
+    // so this patch lands BEFORE the settings consumers bind their scopes.
+    // Without the proxy flag nothing is touched.
+    function apply(ctx) {
+      if (typeof window === "undefined" || window.__DSH_PROXY__ !== true) return
+      try {
+        var connection = ctx.get("connection")
+        connection.isLoopback = true
+      } catch (error) { /* connection unavailable at apply time */ }
+    }
 
     exports.apply = apply;
+    exports.inject = ["connection"];
     return module.exports;
   }
 });

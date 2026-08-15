@@ -20,9 +20,10 @@
    top; tap "Open" to jump to the Tailscale app. The banner disappears once
    connected;
 3. The UI is identical to the phone browser (mobile-fit fully applies).
-   **Note: configuration/credential pages (models, plugins, permissions, agent
-   presets, etc.) always return 403 remotely** — dsh upstream security design;
-   open `http://127.0.0.1:3080` on the machine running dsh instead.
+   **Note: configuration/credential pages (models, plugins, permissions,
+   agent presets, etc.) return 403 remotely by default** — dsh upstream
+   security design; deploying the remote-config proxy unlocks them on the
+   phone (`docs/remote-config.md`).
 
 ## 3. Daily use
 
@@ -44,7 +45,10 @@ build, uninstall first.
 
 ## 5. Known limitations
 
-- Configuration/credential pages return 403 remotely (see section 2);
+- Configuration/credential pages (models, plugins, permissions, etc.) are
+  computer-local by default (HTTP 403 remotely — dsh upstream security
+  design); deploying the remote-config proxy unlocks them on the phone
+  (`docs/remote-config.md`);
 - The phone must keep Tailscale connected to reach the computer;
 - "Clear cache & site data" also clears the internal-testing notice
   acknowledgement (it will prompt once more);

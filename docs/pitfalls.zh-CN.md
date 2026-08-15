@@ -45,7 +45,7 @@
 | P14 | 会话行点击 ⋯ 后行高 44→32 跳变、⋯ 按钮消失、列表整体跳动（像 UI 刷新） | 行是多类名元素（`sessionRow selected menuOpen …`），`[class$="_sessionRow"]` 后缀匹配只命中"该名是最后一个类"的时刻，一旦获得 `selected`/`menuOpen` 尾类规则即失效 | 多类名元素一律用**子串匹配** `[class*="_sessionRow"]`；或打自有 data 属性（`data-mobile-fit="expanded"`） |
 | P15 | 官方类名带构建哈希前缀，直接写死全名会随 dsh 升级失效 | 构建哈希（如 `pI_x6G_`）随版本变化，语义后缀稳定 | 只依赖语义后缀 `[class$="_suffix"]` 与 `data-slot="<槽名>"`；上游升级后回归检查 |
 | P16 | 设置面板/弹窗被限制在 320px 抽屉框内、显示一瞬间没铺满 | 抽屉 `transform` 使自身成为 fixed 后代的**包含块**；transform 过渡又延迟包含块切换 | 弹窗打开时对抽屉临时 `transform: none`（`:has([class$="_mask"])`）+ `transition: none`（否则过渡期间弹窗先在抽屉框内闪一下） |
-| P17 | 模型页 403、插件配置页/权限/Agent 预设空白（远程访问） | dsh 把 settings/credentials 平面钉在**本机回环**，远程域名访问一律 403，多数表面静默吞错（`catch { return }`） | **属上游安全设计，不要绕过**；mobile-fit 在设置面板顶部显示双语横幅说明；电脑上用 `http://127.0.0.1:<端口>` |
+| P17 | 模型页 403、插件配置页/权限/Agent 预设空白（远程访问） | dsh 把 settings/credentials 平面钉在**本机回环**，远程域名访问一律 403，多数表面静默吞错（`catch { return }`） | **属上游安全设计，默认不要绕过**；部署 remote-config 反代（`docs/remote-config.zh-CN.md`）后可解锁 |
 | P18 | 内测声明每次刷新都弹出（远程访问） | 上游在远程浏览器（非 loopback）下用**内存**持久化确认状态 | mobile-fit 用 localStorage 补充持久化（键绑定上游声明版本号，文案变更时同步更新以重新提示一次） |
 | P19 | 页面加载后的"预展开"与用户开抽屉的展开互相抵消 → 抽屉白屏只剩 × | 打开抽屉时遮罩挂载触发 MutationObserver → 展开逻辑在 React 重渲染前又点了一次展开开关（展开→收起） | 展开动作**每次加载最多一次**（幂等开关）；观察器触发的动作都要幂等 |
 | P20 | 拦截 Enter 换行后：不发送了但换行不出现、光标消失，须再输入一个字符才恢复 | iOS Safari 上 `setRangeText` 不触发 `input` 事件，受控组件草稿不更新、光标错乱 | 拦截只 `stopPropagation()`、**不要** `preventDefault()`/手动插文本——让浏览器原生换行（光标/草稿/输入事件全走原生），React 发送处理器收不到按键即可 |

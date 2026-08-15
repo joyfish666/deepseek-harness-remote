@@ -17,13 +17,16 @@
   弹窗全屏正常显示；
 - **输入体验**：Enter 换行（箭头发送）、16px 防 iOS 聚焦缩放、键盘提示"换行"、
   输入区贴底 + 安全区适配；**切换会话不自动聚焦输入框**（不弹键盘，点输入框才聚焦）;
-- **设置面板**：全屏化、导航变顶部横向标签、内容可滚动；远程访问时顶部显示
-  **上游安全设计说明横幅**（配置/凭据接口仅限本机回环，中英双语跟随界面语言）；
+- **设置面板**：全屏化、导航变顶部横向标签、内容可滚动；
 - **持久化**：内测声明首次确认后不再弹出（localStorage，上游在远程浏览器下
   仅内存保存）；
 - **可滑动**：底部统计栏与会话标题左右滑动查看完整内容；
 - **原生壳集成**：运行在 dsh-remote APK 内时（`window.DshShell` 存在），☰ 下方
   出现 ⚙ 齿轮，点击打开原生设置面板（改地址/清数据/常亮/关于）；普通浏览器无此按钮；
+- **remote-config 反代协作**：反代部署下（`window.__DSH_PROXY__` 存在），apply
+  时把客户端 `connection.isLoopback` 翻为 true（配合反代对 boot manifest 的重排，
+  先于 settings 消费者 bind 生效），插件配置卡片等 settingsScope 界面得以使用
+  宿主持久化而非内存模式；
 - 电脑宽屏（>820px）完全不受影响。
 
 ## 工作原理
@@ -34,7 +37,7 @@
    ▼
 window.__ModuleLoader__  ── 加载 /plugins/mobile-fit/client.js（本包注入）
    │  ① <style> 注入：@media (max-width:820px) 移动端规则
-   │  ② 交互：汉堡按钮 + 侧栏抽屉 + 遮罩 + 启动调整（预展开/声明持久化/Enter 换行/提示横幅）+ 输入框脚本聚焦拦截
+   │  ② 交互：汉堡按钮 + 侧栏抽屉 + 遮罩 + 启动调整（预展开/声明持久化/Enter 换行）+ 输入框脚本聚焦拦截 + 反代 loopback 翻盖
    ▼
 官方 UI（React 树原样）
 ```
@@ -84,9 +87,10 @@ window.__ModuleLoader__  ── 加载 /plugins/mobile-fit/client.js（本包注
 - `css` 字符串：移动端规则（媒体查询内；多类名元素用子串匹配，见
   `docs/pitfalls.zh-CN.md` P14）；
 - 抽屉交互：汉堡按钮/遮罩/`openDrawer`/`closeDrawer`；
-- 启动调整：预展开侧栏（幂等）、内测声明持久化与静默关闭、Enter 换行、
-  安全提示横幅（中英双语）；
-- 观察器与监听：body 级/子树级 MutationObserver、点击捕获监听、输入框脚本聚焦拦截（pointerdown + focusin）。
+- 启动调整：预展开侧栏（幂等）、内测声明持久化与静默关闭、Enter 换行；
+- 观察器与监听：body 级/子树级 MutationObserver、点击捕获监听、输入框脚本聚焦拦截（pointerdown + focusin）；
+- apply 补丁：反代部署下（`window.__DSH_PROXY__`）翻转 `connection.isLoopback`
+  （配合 `exports.inject = ['connection']` 与反代的 manifest 重排保证时序）。
 
 改完**刷新页面即生效**（`style` 标签带 `data-plugin-css="mobile-fit/css"`，bundle rev
 由 client-modules 每次请求重新哈希）；新增插件行才需要重启 dsh。
@@ -96,7 +100,8 @@ window.__ModuleLoader__  ── 加载 /plugins/mobile-fit/client.js（本包注
 - **插件形状（重要）**：浏览器端 cordis loader 会把 client bundle 的 exports 当作
   插件应用，**必须导出 `apply`**（函数或带 `apply` 方法的对象），否则页面显示
   `Failed to load plugins ... invalid plugin, expect function or object with an "apply" method`。
-  本包与官方 bundle 一致：`exports.apply = apply`（注入逻辑在 factory 物化时执行）。
+  本包与官方 bundle 一致：`exports.apply = apply`、`exports.inject = ['connection']`
+  （注入逻辑在 factory 物化时执行；apply 补丁在 fiber 激活时执行）。
   可用 `node mobile-fit/test/bundle-shape.mjs` 验证。
 - 选择器使用官方语义类后缀（`[class$="_sidebarCol"]` 等）与 `data-slot` 槽名，
   官方构建哈希前缀（如 `pI_x6G_`）会随版本变化，语义后缀稳定；**上游 dsh 升级后
@@ -106,5 +111,6 @@ window.__ModuleLoader__  ── 加载 /plugins/mobile-fit/client.js（本包注
   `addJavascriptInterface` 注入，仅暴露 `openSettings()` 一个无害方法；齿轮按钮
   只在桥存在时创建（渐进增强），桥方法调用有 try/catch 兜底。
 - **远程访问限制（上游安全设计）**：配置/凭据接口仅限本机回环（localhost）访问，
-  远程域名访问 403——模型页、插件配置页、权限、Agent 预设等不可用；通用页语言/
-  外观可用。mobile-fit 在设置面板顶部显示双语说明横幅。
+  远程域名访问 403。默认部署下模型页、插件配置页、权限、Agent 预设等不可用；
+  部署 remote-config 反代（`docs/remote-config.zh-CN.md`）后解锁（配合本包的
+  loopback 翻盖补丁）。

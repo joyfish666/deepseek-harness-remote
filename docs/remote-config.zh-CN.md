@@ -65,6 +65,10 @@ tailscale serve --bg --set-path /m http://127.0.0.1:3100
 打开 `https://<机器名>.<tailnet>.ts.net/` → 设置 → **模型 / 插件 / 权限 /
 API Key 页面现在可加载、可保存**（此前为空白或 403）。
 
+> 反代会把入口页 HTML 改写两处（幂等）：注入 `window.__DSH_PROXY__` 标记、
+> 重排 boot manifest（mobile-fit 行移到 connection 行之后并加 inject 边）。
+> 两者是插件配置卡片可见性的前提——见下文"为什么插件配置需要第二层修复"。
+
 ## Token 开关（建议开启）
 
 围栏明确不是认证层：**能触达反代的人就能改配置。** tailnet 设备身份是唯一
@@ -75,8 +79,12 @@ setx DSH_PROXY_TOKEN <一长串随机字符>     # 持久化，新进程生效
 ```
 
 设置后，反代在 `/login` 提供迷你登录页；所有请求（含 WebSocket 升级）必须携带
-它下发的 HttpOnly cookie。APK 的 WebView 共用同一 cookie，每台手机登录一次。
-轮换 token 即可让所有手机失效。
+它下发的 HttpOnly cookie（有效期 1 年）。APK 的 WebView 共用同一 cookie，每台
+手机登录一次。轮换 token 即可让所有手机失效。
+
+**固定 token 提示**：用固定口令（如 `wang2004`）可以避免自启/换机后重新登录
+（cookie 持久 1 年，基本只登录一次）；代价是口令强度低于随机长串——tailnet
+设备身份仍是主要边界，token 只是第二道防线。建议至少不与常见弱口令相同。
 
 ## 开机自启（可选）
 
@@ -112,15 +120,33 @@ node scripts\test-remote-config-proxy.mjs
 | 模型目录能开但"发现模型"失败 | 该方法也在回环平面内，反代已覆盖；用冒烟测试路径核对 `settings.describe` |
 | 浏览器正常、APK 不行 | 同源/cookie 问题：在 APK 的 WebView 里登录一次（⚙ 齿轮 → 重开，或清数据重载） |
 
+## 为什么插件配置需要第二层修复
+
+服务端围栏解开后，**插件配置卡片**仍不可见——因为 dsh 前端还有一个
+**客户端**回环判定：`connection.isLoopback` 由 `location.hostname` 计算
+（`packages/client/connection/src/client/index.ts`），经反代后仍是 tailnet
+域名 → `settingsScope.bind()` 落入 `memory` 持久化模式
+（`packages/client/ui-settings/src/client/settings-scope.ts`），不发任何 RPC。
+反代 + mobile-fit 协作修复：
+
+1. 反代在入口 HTML 注入 `window.__DSH_PROXY__ = true`；
+2. 反代重排 `__DSH_BOOT__` manifest：mobile-fit 行移到
+   `@deepseek-ai/dsh-client-connection` 之后，并补 `inject` 边——保证其 apply
+   先于 settings 消费者（ui-settings / ui-settings-plugins 等）执行；
+3. mobile-fit 导出 `inject: ['connection']`，apply 时若标记存在则把
+   `connection.isLoopback` 翻为 true。
+
+无反代部署完全不受影响（无标记即不改动）。**dsh 上游升级后需回归检查**
+manifest 行 id 与连接插件 id 是否变化。
+
 ## 安全边界（务必阅读）
 
 - 本反代**有意把电脑本机权限延伸到 tailnet**：等价于"手机就在电脑前"。
 - 保持 loopback 监听（**不要**绑到局域网/公网，**禁止** `tailscale funnel`）。
   tailnet 身份是认证，token 是第二道防线。
 - dsh 上游把这个平面钉在回环，直到出现真正的认证层——反代属于个人工作流
-  特性，不是产品改动；未改任何 dsh 源码。
-- mobile-fit 设置面板里的"仅限回环"横幅仍会显示——它面向无反代部署，
-  在此场景无害。
+  特性，不是产品改动；未改任何 dsh 源码（前端配合通过 mobile-fit 叠加层 +
+  反代改写实现，upstream 升级需回归）。
 
 ## 文件布局
 

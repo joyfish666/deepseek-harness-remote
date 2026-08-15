@@ -217,6 +217,22 @@ const server = http.createServer((req, res) => {
     path: req.url,
     headers: { ...forwardHeaders(req), host: targetHost },
   }, (upstream) => {
+    const type = upstream.headers['content-type'] ?? ''
+    // text/html responses are rewritten (proxy flag + boot manifest patch);
+    // the body must be buffered for that, so drop the stale content-length.
+    if (req.method === 'GET' && type.includes('text/html')
+        && (upstream.headers['content-encoding'] ?? '') === '') {
+      const chunks = []
+      upstream.on('data', (chunk) => { chunks.push(chunk) })
+      upstream.on('end', () => {
+        const headers = { ...upstream.headers }
+        delete headers['content-length']
+        res.writeHead(upstream.statusCode ?? 502, headers)
+        res.end(rewriteHtml(Buffer.concat(chunks).toString('utf8')))
+      })
+      upstream.on('error', () => { res.destroy() })
+      return
+    }
     res.writeHead(upstream.statusCode ?? 502, upstream.headers)
     upstream.pipe(res)
   })

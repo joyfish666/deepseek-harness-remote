@@ -12,7 +12,7 @@
     <string name="vpn_open">打开</string>
 
     <string name="error_title">无法打开页面</string>
-    <string name="error_detail">请确认：1) 电脑端 dsh 正在运行；2) Tailscale 已连接；3) 地址无误。注意：配置/凭据类页面（模型、插件、权限等）仅限电脑本机访问（HTTP 403），属 dsh 上游安全设计。</string>
+    <string name="error_detail">请确认：1) 电脑端 dsh 正在运行；2) Tailscale 已连接；3) 地址无误。</string>
     <string name="error_retry">重试</string>
     <string name="error_reset">重新设置地址</string>
 
@@ -25,5 +25,5 @@
     <string name="settings_clear_confirm">将清除登录状态、缓存与本地记忆（内测声明会重新提示一次）。确定继续？</string>
     <string name="settings_clear_yes">清除</string>
     <string name="settings_keep_awake">保持屏幕常亮</string>
-    <string name="settings_about">DSH Remote v%1$s — dsh Web 界面的安卓外壳（WebView 容器，不改 dsh 源码）。注意：配置/凭据类页面（模型、插件、权限、Agent 预设等）仅限电脑本机回环访问（远程 HTTP 403），属 dsh 上游安全设计。</string>
+    <string name="settings_about">DSH Remote v%1$s — dsh Web 界面的安卓外壳（WebView 容器，不改 dsh 源码）。配置/凭据类页面默认仅限电脑本机访问（dsh 上游安全设计）；部署 remote-config 反代后可在手机端解锁。</string>
 </resources>

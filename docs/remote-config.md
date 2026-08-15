@@ -74,6 +74,12 @@ tailscale serve --bg --set-path /m http://127.0.0.1:3100
 Open `https://<machine>.<tailnet>.ts.net/` → settings → **Models / plugins /
 permissions / API keys now load and save** (previously blank / 403).
 
+> The proxy also rewrites the entry HTML in two idempotent ways: it injects
+> `window.__DSH_PROXY__` and reorders the boot manifest (mobile-fit's row
+> moved right after the connection row, with an inject edge). Both are
+> required for the plugin-config cards — see "Why plugin config needed a
+> second fix" below.
+
 ## Token gate (optional but recommended)
 
 The fence is explicitly not an authentication layer: **anyone who can reach
@@ -86,8 +92,14 @@ setx DSH_PROXY_TOKEN <long-random-string>     # persists for new processes
 
 With the token set, the proxy serves a mini login page at `/login`; every
 request (WebSocket upgrades included) must carry the HttpOnly cookie it
-issues. The APK's WebView shares the same cookie, so you log in once per
-phone. Rotate the token to invalidate all phones.
+issues (valid 1 year). The APK's WebView shares the same cookie, so you log
+in once per phone. Rotate the token to invalidate all phones.
+
+**Fixed-token note**: a fixed passphrase (e.g. `wang2004`) avoids re-login
+after reboots and on new phones (the cookie lasts a year, so in practice you
+log in once); the tradeoff is strength — the tailnet device identity remains
+the primary boundary, the token is a second factor. At least avoid
+common/weak passphrases.
 
 ## Autostart (optional)
 
@@ -125,6 +137,28 @@ relay (19 assertions).
 | Model catalog loads but "discover models" fails | That method is in the loopback plane too — the proxy covers it; verify `settings.describe` via the smoke test path |
 | Works in browser, not in APK | Same origin/cookie: log in once in the APK's WebView (⚙ gear → reopen, or clear data and reload) |
 
+## Why plugin config needed a second fix
+
+Once the server-side fence is unlocked, the **plugin-config cards** still
+stay invisible, because the dsh frontend has a second, CLIENT-side loopback
+check: `connection.isLoopback` is computed from `location.hostname`
+(`packages/client/connection/src/client/index.ts`), which is still the
+tailnet domain behind the proxy — so `settingsScope.bind()` falls back to
+`memory` persistence (`packages/client/ui-settings/src/client/settings-scope.ts`)
+and fires no RPCs at all. The proxy and mobile-fit cooperate to fix it:
+
+1. The proxy injects `window.__DSH_PROXY__ = true` into the entry HTML;
+2. The proxy reorders the `__DSH_BOOT__` manifest: mobile-fit's row moves
+   right after `@deepseek-ai/dsh-client-connection`, with an inject edge —
+   so its `apply` runs before the settings consumers (ui-settings,
+   ui-settings-plugins, …) bind their scopes;
+3. mobile-fit exports `inject: ['connection']` and, when the flag is
+   present, flips `connection.isLoopback` to true in `apply`.
+
+Deployments without the proxy are untouched (no flag → no change).
+**Regression-check after upstream dsh upgrades**: the manifest row ids and
+the connection plugin id are the patch points.
+
 ## Security boundary (read this)
 
 - This proxy **deliberately extends computer-local privileges to the
@@ -134,9 +168,9 @@ relay (19 assertions).
   factor.
 - dsh upstream considers this plane loopback-only *until a real
   authentication layer exists* — the proxy is a personal-workflow feature,
-  not a product change; no dsh source is touched.
-- The mobile-fit "loopback-only" banner in the settings panel still shows —
-  it is written for the no-proxy deployment and is harmless here.
+  not a product change; no dsh source is touched (the frontend cooperation
+  rides the mobile-fit overlay plus the proxy rewrites — regression-check on
+  upstream upgrades).
 
 ## Layout
 
