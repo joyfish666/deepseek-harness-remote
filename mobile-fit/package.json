@@ -1,0 +1,24 @@
+{
+  "name": "mobile-fit",
+  "description": "M3: mobile UI adaptation layer for the dsh Web GUI (M1). Injects viewport-aware CSS/JS into the official frontend via the client-plugin seam; no upstream changes.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js"
+  ],
+  "license": "MIT"
+}

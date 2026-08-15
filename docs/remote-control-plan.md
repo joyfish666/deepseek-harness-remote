@@ -102,6 +102,23 @@
 
 Phase 3 是 Phase 2 的"能力补强"，两者可并存：网关先走 `/api`，遇到缺口再补插件。
 
+### Phase 4 —— M1 手机 UI 适配层（M3，已实现首个版本）
+
+M1 官方界面在电脑上体验最佳、手机上稍显局促。**不换界面**，用官方 client 插件 seam
+（`dsh.client` 声明 + `exports["./client"]`，与 `dsh-client-ui-*` 同款机制）注入移动端
+适配：
+
+- **零上游改动**：`<style>` 注入 + 少量交互 JS，官方前端 dist 原样；
+- **零构建链**：client bundle 手写 `window.__ModuleLoader__.load({id, factory})` 经典
+  模块，不需要 tsdown；
+- **窄屏才生效**：`@media (max-width: 820px)`，电脑宽屏无影响；
+- 手机访问 M1 原入口（`/`），无新路径，与 M2 的 `/m/` 完全独立。
+
+实现位于 `mobile-fit/`，挂载方式（junction 到 profile node_modules + `cordis.patch.yml`
+insert 一行）见其 README。**注意**：client 插件集合在 dsh 启动时扫描，新增插件行需要
+重启 dsh web（`schtasks /end /tn dsh-web`，看门狗自动拉起），bundle 内容改动则只需
+刷新页面。
+
 ---
 
 ## 4. 安全清单（所有方案必须满足）
@@ -128,6 +145,10 @@ Phase 3 是 Phase 2 的"能力补强"，两者可并存：网关先走 `/api`，
 | M6（可选）插件补强 | 按 Phase 3 补缺口能力 | 需要的事件/操作全部可达 |
 
 **建议起点**：M1（Tailscale + 现有 GUI）今天就能用；M2–M4 是项目主体开发内容。
+
+> 📌 **里程碑命名说明（2026-08-15 更新）**：上表中的 M3（移动端 UI）已并入 M2（自建
+> PWA 界面）。当前仓库的 **M3 = M1 手机 UI 适配层**（Phase 4，`mobile-fit/`）——
+> 不换界面，只为官方界面注入移动端适配；与 M2（自建界面）是两条独立路线，可并存。
 
 ---
 
