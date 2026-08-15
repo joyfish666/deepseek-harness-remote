@@ -88,7 +88,7 @@ function startProxy(port, targetPort, token) {
   return { child, output: () => output }
 }
 
-async function waitReady(port, token) {
+async function waitReady(port, token, proxy) {
   const path = token ? '/login' : '/'
   for (let i = 0; i < 50; i += 1) {
     try {
@@ -97,7 +97,7 @@ async function waitReady(port, token) {
     } catch { /* not up yet */ }
     await new Promise((r) => setTimeout(r, 100))
   }
-  throw new Error('proxy did not become ready')
+  throw new Error('proxy did not become ready; output: ' + (typeof proxy === 'undefined' ? '?' : proxy.output().slice(0, 800)))
 }
 
 function upgradeEcho(port, path, cookie) {
@@ -171,7 +171,7 @@ function check(name, cond, detail = '') {
   const targetPort = target.address().port
   const proxyPort = await getFreePort()
   const proxy = startProxy(proxyPort, targetPort, '')
-  await waitReady(proxyPort, false)
+  await waitReady(proxyPort, false, proxy)
   const res = await fetch(`http://127.0.0.1:${proxyPort}/api/session.list`, {
     method: 'POST',
     headers: {
@@ -197,7 +197,7 @@ function check(name, cond, detail = '') {
   const targetPort = target.address().port
   const proxyPort = await getFreePort()
   const proxy = startProxy(proxyPort, targetPort, 's3cret-token')
-  await waitReady(proxyPort, true)
+  await waitReady(proxyPort, true, proxy)
 
   // Unauthenticated GET / redirects to the login page.
   const root = await fetch(`http://127.0.0.1:${proxyPort}/`, { redirect: 'manual' })
@@ -261,7 +261,7 @@ function check(name, cond, detail = '') {
   const targetPort = target.address().port
   const proxyPort = await getFreePort()
   const proxy = startProxy(proxyPort, targetPort, '')
-  await waitReady(proxyPort, false)
+  await waitReady(proxyPort, false, proxy)
 
   const result = await upgradeEcho(proxyPort, '/api/events.mux', undefined)
   check('upgrade -> 101', result.headers.includes('101'), result.headers.split('\r\n')[0])
@@ -278,7 +278,7 @@ function check(name, cond, detail = '') {
   const targetPort = target.address().port
   const proxyPort = await getFreePort()
   const proxy = startProxy(proxyPort, targetPort, '')
-  await waitReady(proxyPort, false)
+  await waitReady(proxyPort, false, proxy)
 
   const page = await fetch(`http://127.0.0.1:${proxyPort}/`)
   const html = await page.text()

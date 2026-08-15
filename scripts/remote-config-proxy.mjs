@@ -182,6 +182,51 @@ function loginPage(error) {
 </html>`
 }
 
+// ── HTML rewriting ──────────────────────────────────────────────────────
+// The dsh client gates its settings plane on the CLIENT-side loopback state
+// (connection.isLoopback, read from location.hostname), which stays the
+// tailnet domain behind the proxy. Two rewrites make the page cooperate:
+//   1. Inject window.__DSH_PROXY__ — mobile-fit reads it and flips
+//      connection.isLoopback before the settings consumers bind scopes.
+//   2. Reorder the boot manifest so mobile-fit's row sits right after
+//      dsh-client-connection (with an inject edge), guaranteeing its apply
+//      runs before ui-settings and the scope consumers.
+const PROXY_FLAG_SCRIPT = '<script>window.__DSH_PROXY__=true</script>'
+const CONNECTION_ROW_ID = '@deepseek-ai/dsh-client-connection'
+
+function rewriteHtml(body) {
+  let html = body
+  if (!html.includes('window.__DSH_PROXY__')) {
+    html = html.replace('</head>', `${PROXY_FLAG_SCRIPT}</head>`)
+  }
+  const markerAt = html.indexOf('__DSH_BOOT__')
+  if (markerAt < 0) return html
+  const assignAt = html.indexOf('=', markerAt)
+  const jsonStart = html.indexOf('{', assignAt)
+  const scriptEnd = html.indexOf('</script>', jsonStart)
+  if (assignAt < 0 || jsonStart < 0 || scriptEnd <= jsonStart) return html
+  let raw = html.slice(jsonStart, scriptEnd).trim()
+  if (raw.endsWith(';')) raw = raw.slice(0, -1)
+  let manifest
+  try {
+    manifest = JSON.parse(raw)
+  } catch (error) {
+    log(`boot manifest parse failed: ${error.message}`)
+    return html
+  }
+  const entries = manifest.entries
+  const mobileFit = entries.findIndex((entry) => entry.id === 'mobile-fit')
+  const connection = entries.findIndex((entry) => entry.id === CONNECTION_ROW_ID)
+  if (mobileFit < 0 || connection < 0 || mobileFit === connection) return html
+  const row = entries.splice(mobileFit, 1)[0]
+  row.inject = [CONNECTION_ROW_ID]
+  entries.splice(connection + 1, 0, row)
+  const patched = JSON.stringify(manifest)
+  if (patched === raw) return html
+  log('boot manifest patched: mobile-fit row moved after connection, inject edge added')
+  return html.slice(0, jsonStart) + patched + html.slice(scriptEnd)
+}
+
 function serveLoginPage(res, error) {
   res.writeHead(error ? 401 : 200, {
     'content-type': 'text/html; charset=utf-8',
