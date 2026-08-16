@@ -272,6 +272,8 @@ Register-ScheduledTask -TaskName 'dsh-remote-config-proxy' -Action $action -Trig
 | Inspect | `Get-ScheduledTask -TaskName dsh-web` |
 | Start now | `schtasks /run /tn dsh-web` |
 | Restart | `schtasks /end /tn dsh-web` (watchdog relaunches in ~10s) |
+| Proxy: start now | `schtasks /run /tn dsh-remote-config-proxy` |
+| Proxy: restart | `schtasks /end /tn dsh-remote-config-proxy` (watchdog relaunches in ~10s) |
 | Disable | `Unregister-ScheduledTask -TaskName dsh-web` |
 
 ---

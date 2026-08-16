@@ -276,6 +276,8 @@ Register-ScheduledTask -TaskName 'dsh-remote-config-proxy' -Action $action -Trig
 | 查看任务 | `Get-ScheduledTask -TaskName dsh-web` |
 | 立即启动 | `schtasks /run /tn dsh-web` |
 | 重启 | `schtasks /end /tn dsh-web`（看门狗 10 秒后自动拉起） |
+| 代理：立即启动 | `schtasks /run /tn dsh-remote-config-proxy` |
+| 代理：重启 | `schtasks /end /tn dsh-remote-config-proxy`（看门狗 10 秒后自动拉起） |
 | 停用自启 | `Unregister-ScheduledTask -TaskName dsh-web` |
 
 > Tailscale 是系统服务、serve 配置持久保存，重启电脑自动恢复，无需处理。
