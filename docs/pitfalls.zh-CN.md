@@ -26,9 +26,10 @@
 |---|---|---|---|
 | P6 | `!!js` 补丁表达式写成带空格数组 → dsh 启动 fail-loud 解析失败 | dsh 的 `!!js` 标签 `kind: "scalar"`，只接受**单个 YAML 标量** | 整个 JS 表达式用**双引号包裹成字符串**：`trustedHosts: !!js "[...数组...]"` |
 | P7 | 改 `~/.dsh/profiles/web/cordis.patch.yml` 后以为要重启 | profile 补丁由 `watchUserPatches`（Cordis HMR）**热重载** | 改完等几秒即生效；但**格式错误会 fail-loud**——修改前先备份 |
-| P8 | `host.listDirectory` 返回 "needs the browse capability" | 目录选择是 seam：native 后端不提供 browse 方法；本机默认解析为 native | 补丁禁用 `directory-picker`(auto) 并插入 `directory-picker-browse` 行（副作用：桌面端选择工作区也变浏览器内浏览） |
+| P8 | `host.listDirectory` 返回 "needs the browse capability" | 目录选择是 seam：native 后端不提供 browse 方法；本机默认解析为 native | 补丁禁用 `directory-picker`(auto) 并**成对**插入 `directory-picker-browse`（host 后端）+ `ui-directory-picker-browse`（client 界面）两行——只挂 host 会丢失客户端目录流程（副作用：桌面端选择工作区也变浏览器内浏览） |
 | P9 | 修改 profile 补丁的瞬间，dsh 连接层可能重启 → 已建立的 WebSocket 全断 | HMR 事务性重应用会重建相关插件纤维 | 消费方必须**自动重连**（指数退避）；SSE 写端必须 try/catch 防死客户端传播 |
 | P10 | `session.search` 报 "search is disabled: openAt never" | web-app bundle 默认 `session-query-sqlite.openAt: never`（全文搜索为 opt-in） | profile 补丁重述整行：`{path: ':memory:', openAt: first-search}`（首次搜索时懒建索引，热重载生效） |
+| P36 | 换 browse 后端后，"添加工作区"按钮和"添加工作区…"菜单项整个消失（只看得见每行的"新建会话" +） | 目录选择 seam 是**一对插件**：host 后端（`dsh-host-directory-picker-browse`，无 client.js）+ client 界面（`dsh-client-ui-directory-picker-browse`，填充 ui-workspace 目录流程槽位）。auto 插件启动时两者一起挂载（`BACKEND_PACKAGES` + `SURFACE_PACKAGES`）；只插 host 行时客户端 `directoryFlowAvailable` 恒为 false，添加入口不渲染 | 成对插入两行（见 P8 对策）；新增 client 插件行**不热重载**（P7 只对已有行成立），必须重启 dsh web（client-modules 启动时扫描） |
 
 ## 三、dsh 协议
 
