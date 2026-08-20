@@ -80,6 +80,12 @@ build-hash prefix changes per version (**regression-check after upstream
 upgrades**); the details column is hidden on phones; all enhancements are
 invisible in a plain browser.
 
+**dsh rc.8 module loader change**: `window.__ModuleLoader__` is now a
+queued facade (`{mode, pendingQueue, load, create}`) instead of a direct
+`{load}` object. The `load({id, factory})` signature is unchanged — the
+facade queues registrations until `create()` materializes the module system.
+Our mobile-fit plugin's call works transparently; see pitfalls P36.
+
 ## 3. APK (Android shell)
 
 ### Layout

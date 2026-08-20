@@ -84,6 +84,11 @@ node mobile-fit/test/proxy-apply.mjs      # 反代 loopback 翻转
 - 手机端默认隐藏右侧详情列（`_detailsCol`）；
 - 普通浏览器（无反代、无 APK 桥）下这些增强全部自动隐身。
 
+**dsh rc.8 模块加载器变更**：`window.__ModuleLoader__` 现为队列化 facade
+（`{mode, pendingQueue, load, create}`），不再是直接的 `{load}` 对象。
+`load({id, factory})` 签名未变——facade 在 `create()` 实例化模块系统前透明排队。
+我们的 mobile-fit 插件调用无需修改；详见坑位 P36。
+
 ## 3. APK（安卓原生壳）
 
 ### 工程结构
