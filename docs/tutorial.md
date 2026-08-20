@@ -44,6 +44,16 @@ npx @deepseek-ai/dsh web
 
 Open `http://127.0.0.1:3080` — the official UI means success. Closing the window stops the service.
 
+> **Update to latest version**: to ensure you're running the newest dsh release,
+> add `@latest` tag — this forces npx to fetch from npm instead of using cache:
+> ```sh
+> npx --yes @deepseek-ai/dsh@latest web
+> ```
+> To check the currently installed version, look at the log output or run:
+> ```sh
+> npx @deepseek-ai/dsh --version
+> ```
+
 **Option B: repo script** (Windows)
 
 Run `scripts/start-dsh.ps1` (double-click or terminal). It runs node directly

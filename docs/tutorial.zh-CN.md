@@ -43,6 +43,16 @@ npx @deepseek-ai/dsh web
 
 浏览器打开 `http://127.0.0.1:3080`，看到官方界面即成功。窗口关闭 = 停止服务。
 
+> **升级到最新版本**：如需确保运行最新版 dsh，请在命令中添加 `@latest` 标签——
+> 这会强制 npx 从 npm 拉取而非使用缓存：
+> ```sh
+> npx --yes @deepseek-ai/dsh@latest web
+> ```
+> 查看当前安装版本：
+> ```sh
+> npx @deepseek-ai/dsh --version
+> ```
+
 **方式 B：用仓库脚本启动**（Windows）
 
 双击 `scripts/start-dsh.ps1`（或在终端运行）。脚本特性：
