@@ -11,7 +11,9 @@
 
 > **Note**: this project **does not modify the dsh source** (a pure overlay). When upstream dsh changes, this project **adapts accordingly**.
 
-> **Compatibility**: this project currently adapts **dsh v0.1.0-rc.8** (released 2026-08-19). The included APK is already up to date — no rebuild needed.
+> **Compatibility**: this project currently adapts **dsh v0.1.0-rc.8** (released 2026-08-19).
+> npm latest is rc.7; rc.8 will be available via `npx @deepseek-ai/dsh@latest web` once published.
+> The included APK is already up to date — no rebuild needed.
 
 ## Screenshots
 
