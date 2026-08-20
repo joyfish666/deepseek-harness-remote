@@ -19,6 +19,7 @@
 | P3 | `curl -d "{\"a\":1}"` 在 PowerShell 里引号被剥，服务端收到残缺 JSON | PowerShell 向原生程序传参时的引号转义问题 | 一律 `--data-binary "@文件"` 方式传 JSON 体 |
 | P4 | `Set-Content -NoNewline` 把数组元素连成一行 | `-NoNewline` 不补元素间分隔符 | 用管道 `@(...) \| Set-Content`（默认逐行）；写 `.env` 后必须重新解析验证 |
 | P5 | 本机 git push 直连 GitHub 连接被重置 | 网络环境需代理 | 仓库级 `git config http.proxy http://127.0.0.1:7890`（+https.proxy），勿动全局 |
+| P37 | `npx --yes @deepseek-ai/dsh@latest web` 升级 dsh 时 `FATAL ERROR: … JavaScript heap out of memory`（约 2GB 上限、历时十几分钟才报错），看门狗 10 秒后重试又循环失败 | npx 每次运行都要重新把大体积 dsh 包（含全部依赖，数百 MB）下载解压到 `_npx` 缓存，默认堆上限 ~2GB 在慢网络/解压阶段被打爆；失败不落缓存，下次重试再拉再爆 | 不要用 npx 升级：`npm install -g @deepseek-ai/dsh@latest` **只安装一次**，之后固定版本、离线启动；`start-dsh.ps1` 的 `Resolve-DshBinJs` 已改为**全局优先**（全局 → npx 缓存 → npx），升级后 `schtasks /end /tn dsh-web` 让看门狗以新版重启 |
 
 ## 二、dsh 配置与热重载
 

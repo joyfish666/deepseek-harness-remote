@@ -43,21 +43,31 @@ npx @deepseek-ai/dsh web
 
 浏览器打开 `http://127.0.0.1:3080`，看到官方界面即成功。窗口关闭 = 停止服务。
 
-> **升级到最新版本**：如需确保运行最新版 dsh，请在命令中添加 `@latest` 标签——
-> 这会强制 npx 从 npm 拉取而非使用缓存：
-> ```sh
-> npx --yes @deepseek-ai/dsh@latest web
-> ```
-> 查看当前安装版本：
-> ```sh
-> npx @deepseek-ai/dsh --version
-> ```
+> **版本与升级（重要）**：
+>
+> - **固定版本机制**：自启动脚本 `start-dsh.ps1` 优先运行**全局安装**的 dsh
+>   （查找顺序：全局 → npx 缓存 → npx 拉取）。因此**重启电脑后运行的是固定版本**，
+>   不会每次联网拉新；只有你手动升级后才变化。想确认自启动用的是哪个版本，看日志
+>   `~/.dsh/logs/dsh-web.log` 里的 `starting dsh web (… bin: <路径>)`。
+> - **手动升级到最新版**（电脑上执行，一次即可让本机与远程连接都切到新版）：
+>   ```powershell
+>   npm install -g @deepseek-ai/dsh@latest
+>   schtasks /end /tn dsh-web    # 若注册了自启：看门狗 10 秒后自动以新版重启
+>   ```
+>   未注册自启则手动重启 dsh 进程即可。
+> - **查看当前版本**：`dsh --version`（全局安装后直接可用；npx 缓存里则用
+>   `npx @deepseek-ai/dsh --version`）。
+> - ⚠️ **不要用** `npx --yes @deepseek-ai/dsh@latest web` 来升级：npx 每次重新
+>   拉取包，极易触发 Node.js 堆内存 OOM（`JavaScript heap out of memory`，见
+>   pitfalls P37）导致失败；全局安装只发生一次，之后固定版本、离线启动。
 
 **方式 B：用仓库脚本启动**（Windows）
 
 双击 `scripts/start-dsh.ps1`（或在终端运行）。脚本特性：
 
 - 以 node 直接运行（无 cmd.exe 包装窗口）；
+- 优先运行**全局安装**的 dsh（固定版本，见上方"版本与升级"）；全局未装时才
+  回退到 npx 缓存 / npx 拉取；
 - 进程崩溃 **10 秒后自动重启**（看门狗）；
 - 端口被占用则退出（避免双实例）；
 - 日志：`~/.dsh/logs/dsh-web.log`。
@@ -342,6 +352,8 @@ Remove-Item "$HOME\.dsh\profiles\web\node_modules\mobile-fit"
 | 页面显示 "Failed to load plugins" | mobile-fit 未生效：确认 junction 与 patch 行正确后重启 dsh（见第 2.4 节） |
 | 手机浏览器加载慢（无痕模式） | 无痕模式每次冷启动全量重下资源；请用**正常模式**（见第 4.4 节） |
 | 命令行找不到 `tailscale` | Windows 用完整路径：`C:\Program Files\Tailscale\tailscale.exe` |
+| `npx @deepseek-ai/dsh@latest web` 报 `JavaScript heap out of memory` | 改用全局安装升级（见第 2.1 节"版本与升级"），不要用 npx |
+| 升级后自启动跑的还是旧版 | `start-dsh.ps1` 固定全局版本；确认已 `npm install -g @deepseek-ai/dsh@latest`，再 `schtasks /end /tn dsh-web` 让看门狗以新版重启，或看日志 `bin:` 路径 |
 | 开机看到一个 cmd.exe 窗口 | 是 AMD 显卡驱动（`AMDRSServ.exe`），与项目无关，可关闭 |
 | APK 打开后出现反代登录页 | 在 APK ⚙ 设置里填 Token 保存（见第 4.3 节） |
 | APK 顶部内容被摄像头挖孔遮挡 | 已内置适配（内容从状态栏下方开始）；老版本请升级 |

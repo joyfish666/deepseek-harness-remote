@@ -18,6 +18,7 @@
 | P3 | `curl -d "{\"a\":1}"` loses quotes in PowerShell; the server receives broken JSON | PowerShell quote-escaping when passing arguments to native programs | Always pass JSON bodies via `--data-binary "@file"` |
 | P4 | `Set-Content -NoNewline` joins array elements into one line | `-NoNewline` does not add element separators | Pipe `@(...) \| Set-Content` (line by line); always re-parse `.env` after writing |
 | P5 | Direct `git push` to GitHub gets connection reset | The network needs a proxy | Repo-level `git config http.proxy http://127.0.0.1:7890` (+https.proxy); don't touch the global config |
+| P37 | Updating dsh with `npx --yes @deepseek-ai/dsh@latest web` dies with `FATAL ERROR: … JavaScript heap out of memory` (~2GB cap, takes tens of minutes before failing); the watchdog retries every 10s and loops the same failure | npx re-downloads and re-extracts the large dsh package (with all deps, hundreds of MB) into `_npx` on every run; the ~2GB default heap cap is blown during slow-network download/extract. A failed install is not cached, so each retry re-fetches and re-explodes | Do not update via npx: `npm install -g @deepseek-ai/dsh@latest` **installs once**, then stays fixed and starts offline. `start-dsh.ps1`'s `Resolve-DshBinJs` now prefers **global → npx cache → npx**; after upgrading, `schtasks /end /tn dsh-web` makes the watchdog relaunch the new version |
 
 ## 2. dsh Configuration & Hot Reload
 

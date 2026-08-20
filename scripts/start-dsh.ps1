@@ -32,12 +32,18 @@ function Write-Log([string]$msg) {
 }
 
 # Resolve the installed dsh entry (node_modules/@deepseek-ai/dsh/lib/bin.js).
-# Two lookup paths:
-#   1. the dsh shim on PATH (interactive shells have the npx .bin dir injected);
-#   2. the npx cache directly (scheduled tasks inherit only the registry PATH,
+# Lookup order (global install preferred so reboot uses the latest dsh):
+#   1. global npm root (npm install -g @deepseek-ai/dsh@latest);
+#   2. the dsh shim on PATH (interactive shells have the npx .bin dir injected);
+#   3. the npx cache directly (scheduled tasks inherit only the registry PATH,
 #      which contains node/npm but NOT the _npx\<hash>\node_modules\.bin dir).
 # Returns '' when not resolvable (caller falls back to npx).
 function Resolve-DshBinJs {
+  $globalRoot = & npm root -g 2>$null
+  if ($globalRoot) {
+    $candidate = Join-Path $globalRoot '@deepseek-ai\dsh\lib\bin.js'
+    if (Test-Path $candidate) { return $candidate }
+  }
   $shim = Get-Command dsh -CommandType ExternalScript -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($shim) {
     $binDir = Split-Path (Split-Path $shim.Source -Parent) -Parent   # ...\.bin -> node_modules

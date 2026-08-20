@@ -44,21 +44,35 @@ npx @deepseek-ai/dsh web
 
 Open `http://127.0.0.1:3080` — the official UI means success. Closing the window stops the service.
 
-> **Update to latest version**: to ensure you're running the newest dsh release,
-> add `@latest` tag — this forces npx to fetch from npm instead of using cache:
-> ```sh
-> npx --yes @deepseek-ai/dsh@latest web
-> ```
-> To check the currently installed version, look at the log output or run:
-> ```sh
-> npx @deepseek-ai/dsh --version
-> ```
+> **Version & updates (important)**:
+>
+> - **Fixed-version mechanism**: the autostart script `start-dsh.ps1` prefers
+>   the **globally installed** dsh (lookup order: global → npx cache → npx fetch).
+>   So **reboots always run the same fixed version** — it never re-fetches from
+>   the network; it only changes when you update manually. To confirm which
+>   version the autostart runs, check `~/.dsh/logs/dsh-web.log` for
+>   `starting dsh web (… bin: <path>)`.
+> - **Update to the latest version manually** (run on the PC; one shot switches
+>   both the local and the remote connection to the new version):
+>   ```powershell
+>   npm install -g @deepseek-ai/dsh@latest
+>   schtasks /end /tn dsh-web    # if autostart is registered: watchdog relaunches with the new version in ~10s
+>   ```
+>   Without autostart, just restart the dsh process.
+> - **Check the current version**: `dsh --version` (works right after the global
+>   install; for the npx cache use `npx @deepseek-ai/dsh --version`).
+> - ⚠️ **Do not** update via `npx --yes @deepseek-ai/dsh@latest web`: npx
+>   re-fetches the package each time, which frequently blows the Node.js heap
+>   (`JavaScript heap out of memory`, see pitfalls P37). The global install
+>   happens once, then stays fixed and starts offline.
 
 **Option B: repo script** (Windows)
 
 Run `scripts/start-dsh.ps1` (double-click or terminal). It runs node directly
-(no cmd.exe window), restarts the process **10s after a crash** (watchdog),
-exits if the port is busy (no double instances), and logs to
+(no cmd.exe window), prefers the **globally installed** dsh (fixed version,
+see "Version & updates" above; only falls back to the npx cache / npx fetch
+when the global install is missing), restarts the process **10s after a crash**
+(watchdog), exits if the port is busy (no double instances), and logs to
 `~/.dsh/logs/dsh-web.log`.
 
 ### 2.2 Local verification
@@ -330,6 +344,8 @@ returns `403` (fence restored).
 | "Failed to load plugins" | mobile-fit not active: check junction + patch row, restart dsh (2.4) |
 | Browser loads slowly (incognito) | Incognito cold-starts every time; use normal mode (4.4) |
 | `tailscale` not found | Windows full path: `C:\Program Files\Tailscale\tailscale.exe` |
+| `npx @deepseek-ai/dsh@latest web` fails with `JavaScript heap out of memory` | Update via the global install instead (see §2.1 "Version & updates"); don't use npx |
+| Autostart still runs the old version after an update | `start-dsh.ps1` pins the global version; make sure `npm install -g @deepseek-ai/dsh@latest` ran, then `schtasks /end /tn dsh-web` so the watchdog relaunches the new version, or check the `bin:` path in the log |
 | A cmd.exe window appears at startup | AMD graphics driver (`AMDRSServ.exe`), unrelated; safe to close |
 | APK shows the proxy login page | Fill Token in ⚙ settings (4.3) |
 | APK content hidden under the punch-hole | Built-in (content starts below the status bar); update the app |

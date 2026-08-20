@@ -19,6 +19,10 @@
 > **兼容性**：本项目当前适配 **dsh v0.1.0-rc.8**（发布于 2026-08-19）。
 > npm 最新版为 rc.7；rc.8 发布到 npm 后即可通过 `npx @deepseek-ai/dsh@latest web` 获取。
 > 所含 APK 已是最新，无需重新构建。
+>
+> **升级 dsh**：用 `npm install -g @deepseek-ai/dsh@latest` 手动升级（**不要**用 npx，
+> 会 OOM，见 [docs/pitfalls.zh-CN.md](docs/pitfalls.zh-CN.md) P37），然后重启 dsh。
+> 完整步骤见 [docs/tutorial.zh-CN.md](docs/tutorial.zh-CN.md) 第 2.1 节。
 
 ## 界面预览
 
