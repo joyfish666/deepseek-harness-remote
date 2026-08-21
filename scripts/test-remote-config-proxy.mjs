@@ -73,13 +73,17 @@ function startMockTarget() {
 }
 
 function startProxy(port, targetPort, token) {
+  const env = {
+    ...process.env,
+    DSH_PROXY_PORT: String(port),
+    DSH_PROXY_TARGET: `http://127.0.0.1:${targetPort}`,
+  }
+  // The ambient environment may carry a real DSH_PROXY_TOKEN (setx'd for the
+  // deployment); never let it leak into a token-less test scenario.
+  if (token) env.DSH_PROXY_TOKEN = token
+  else delete env.DSH_PROXY_TOKEN
   const child = spawn(process.execPath, [join(ROOT, 'remote-config-proxy.mjs')], {
-    env: {
-      ...process.env,
-      DSH_PROXY_PORT: String(port),
-      DSH_PROXY_TARGET: `http://127.0.0.1:${targetPort}`,
-      ...(token ? { DSH_PROXY_TOKEN: token } : {}),
-    },
+    env,
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let output = ''

@@ -11,9 +11,13 @@
 
 > **Note**: this project **does not modify the dsh source** (a pure overlay). When upstream dsh changes, this project **adapts accordingly**.
 
-> **Compatibility**: this project currently adapts **dsh v0.1.0-rc.8** (released 2026-08-19).
-> npm latest has since moved on (**0.1.1-rc.1**) — after upgrading, regression-check
-> the mobile-fit overlay. The included APK is already up to date — no rebuild needed.
+> **Compatibility**: this project is verified against **dsh v0.1.1-rc.1**
+> (released 2026-08-21). Upgrading from rc.8 required **no code changes**:
+> the overlay's class suffixes / `data-slot` names, the `__ModuleLoader__`
+> facade, the trust fence (`trustedHosts` + Origin deletion), the
+> directory-picker browse pair, and `session-query-sqlite` (`openAt:
+> first-search`) all survive unchanged (verified against the rc.1 bundles,
+> 2026-08-21). The included APK is already up to date — no rebuild needed.
 >
 > **Updating dsh**: double-click `scripts/update-dsh.cmd` for a one-click update
 > (checks the latest version, installs it, restarts dsh web); or manually with

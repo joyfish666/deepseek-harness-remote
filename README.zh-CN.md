@@ -16,8 +16,11 @@
 > **重要说明**：本项目**无需修改源 dsh 代码**（纯叠加层）；上游 dsh 源码更新后，
 > 本项目会**同步适配**。
 
-> **兼容性**：本项目当前适配 **dsh v0.1.0-rc.8**（发布于 2026-08-19）。
-> npm 最新版此后又往前走了（**0.1.1-rc.1**）——升级后请回归检查 mobile-fit 叠加层。
+> **兼容性**：本项目已针对 **dsh v0.1.1-rc.1**（发布于 2026-08-21）完成回归验证。
+> 从 rc.8 升级**无需改任何代码**：叠加层使用的类名后缀 / `data-slot` 槽名、
+> `__ModuleLoader__` facade、信任围栏（`trustedHosts` + Origin 删除）、
+> directory-picker browse 插件对、`session-query-sqlite`（`openAt: first-search`）
+> 在 rc.1 中全部原样保留（2026-08-21 对 rc.1 真实产物逐项核对）。
 > 所含 APK 已是最新，无需重新构建。
 >
 > **升级 dsh**：双击 `scripts/update-dsh.cmd` 一键升级（自动对比最新版、安装并重启
