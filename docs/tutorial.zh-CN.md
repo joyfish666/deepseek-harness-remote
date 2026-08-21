@@ -49,6 +49,9 @@ npx @deepseek-ai/dsh web
 >   （查找顺序：全局 → npx 缓存 → npx 拉取）。因此**重启电脑后运行的是固定版本**，
 >   不会每次联网拉新；只有你手动升级后才变化。想确认自启动用的是哪个版本，看日志
 >   `~/.dsh/logs/dsh-web.log` 里的 `starting dsh web (… bin: <路径>)`。
+> - **一键更新（推荐，Windows）**：双击 `scripts/update-dsh.cmd`——脚本自动对比
+>   npm 最新版与当前版本：有新版则安装并（可选）立即重启 dsh web 应用新版；已是最新
+>   则直接提示"已经是最新版本"，无需任何操作。
 > - **手动升级到最新版**（电脑上执行，一次即可让本机与远程连接都切到新版）：
 >   ```powershell
 >   npm install -g @deepseek-ai/dsh@latest

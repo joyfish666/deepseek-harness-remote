@@ -26,6 +26,7 @@ deepseek-harness-remote/
 │   └── build.gradle.kts               # minSdk 26 / targetSdk 35 / release signing
 ├── scripts/
 │   ├── start-dsh.ps1 / .vbs           # dsh web watchdog + zero-window launch
+│   ├── update-dsh.ps1 / .cmd          # one-click dsh update (UTF-8 w/ BOM ps1)
 │   ├── remote-config-proxy.mjs        # the proxy (zero dependencies)
 │   ├── start-remote-config-proxy.ps1 / .vbs
 │   ├── test-remote-config-proxy.mjs   # proxy smoke test (23 assertions)

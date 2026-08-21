@@ -52,6 +52,11 @@ Open `http://127.0.0.1:3080` — the official UI means success. Closing the wind
 >   the network; it only changes when you update manually. To confirm which
 >   version the autostart runs, check `~/.dsh/logs/dsh-web.log` for
 >   `starting dsh web (… bin: <path>)`.
+> - **One-click update (recommended, Windows)**: double-click
+>   `scripts/update-dsh.cmd` — it compares the npm latest version with the
+>   installed one: if a newer version exists it installs it and (optionally)
+>   restarts dsh web immediately; if you're already on the latest it just says
+>   "already the latest version".
 > - **Update to the latest version manually** (run on the PC; one shot switches
 >   both the local and the remote connection to the new version):
 >   ```powershell

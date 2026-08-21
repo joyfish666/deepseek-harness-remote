@@ -26,6 +26,7 @@ deepseek-harness-remote/
 │   └── build.gradle.kts               # minSdk 26 / targetSdk 35 / release 签名
 ├── scripts/
 │   ├── start-dsh.ps1 / .vbs           # dsh web 看门狗 + 零窗口启动
+│   ├── update-dsh.ps1 / .cmd          # dsh 一键更新（ps1 为 UTF-8 带 BOM）
 │   ├── remote-config-proxy.mjs        # 反代本体（零依赖）
 │   ├── start-remote-config-proxy.ps1 / .vbs
 │   ├── test-remote-config-proxy.mjs   # 反代冒烟测试（23 断言）
